@@ -1,0 +1,8 @@
+{
+  "id": "dn1sup_create_project",
+  "name": "DN1SUP Create Project",
+  "version": "1.0.0",
+  "description": "Создание и оформление мебельных проектов: структура папок, карточка YAML, картинки и документы",
+  "creator": "DN1Sup",
+  "copyright": "2026, DN1Sup"
+}
