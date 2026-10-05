@@ -58,8 +58,14 @@ module Dn1supCreateProject
       target = path.to_s
       target = File.dirname(target) if File.file?(target)
       return false unless File.directory?(target)
+      return false unless SUPPORTED
 
-      reveal(target)
+      ret = API.ShellExecuteW(nil, wide('open'),
+                              wide(target.tr('/', '\\')),
+                              nil, nil, SW_SHOWNORMAL)
+      ret.to_i > 32
+    rescue StandardError
+      false
     end
 
     private

@@ -52,6 +52,7 @@ function emitResult(kind, payload) {
   }
   if (kind === 'settings_saved') toast('ok', 'Настройки сохранены')
   if (kind === 'created' && payload.results) toast('ok', `Создано проектов: ${payload.results.length}`)
+  if (kind === 'subfolder_created') toast('ok', `Папка «${payload.name || ''}» создана`)
   if (kind === 'add_files') {
     const n = (payload.added || []).length
     const skipped = (payload.skipped || []).length

@@ -89,6 +89,16 @@
         <!-- Подпапки -->
         <div class="cp-card p-3 mb-3">
           <div class="cp-label mb-2">Подпапки</div>
+          <div v-if="detail.card.subfolders && detail.card.subfolders.length" class="flex flex-wrap gap-1.5 mb-2.5">
+            <span
+              v-for="sub in detail.card.subfolders"
+              :key="sub"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px] text-slate-600 dark:text-slate-300 font-mono"
+            >
+              <Folder class="w-3 h-3 text-slate-400 shrink-0" />
+              {{ sub }}
+            </span>
+          </div>
           <div class="flex gap-1.5">
             <input
               v-model="subfolderDraft"
@@ -132,7 +142,7 @@
 
 <script setup>
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
-import { FolderInput, FolderOpen, FolderMinus, FolderPlus, Paperclip, Save } from 'lucide-vue-next'
+import { Folder, FolderInput, FolderOpen, FolderMinus, FolderPlus, Paperclip, Save } from 'lucide-vue-next'
 import FilesPanel from './FilesPanel.vue'
 import {
   state, openProject, registerExisting, saveDescription, openFolder, createSubfolder,

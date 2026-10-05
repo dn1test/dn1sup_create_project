@@ -14,7 +14,7 @@
       </button>
     </div>
 
-    <div class="grid gap-2" :class="type === 'commercial' ? 'grid-cols-1' : 'grid-cols-1'">
+    <div class="grid gap-2 grid-cols-1">
       <div>
         <label class="block">
           <span class="block mb-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
@@ -60,7 +60,8 @@
             class="cp-input"
             :placeholder="productPlaceholder"
             :list="productsListId"
-            @keydown.enter.prevent="addProduct(productDraft)"
+            @keydown.enter="commitDraftSoon"
+            @blur="addProduct(productDraft)"
           />
           <select
             v-if="suggestions.length"
@@ -126,6 +127,12 @@ function addProduct(value) {
     props.project.products.push(v)
   }
   productDraft.value = ''
+}
+
+// Enter при открытой подсказке datalist: input-событие с принятым значением
+// приходит после keydown, поэтому коммитим на следующем тике
+function commitDraftSoon() {
+  setTimeout(() => addProduct(productDraft.value), 0)
 }
 
 function removeProduct(index) {

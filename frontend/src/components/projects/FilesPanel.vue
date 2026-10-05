@@ -130,6 +130,6 @@ function folderName(path) {
 
 function fullPath(rel) {
   if (!rel) return ''
-  return /[\\/]/.test(rel) ? rel : `${props.projectPath}/${rel}`
+  return /^([a-zA-Z]:|[\\/])/.test(rel) ? rel : `${props.projectPath}/${rel}`
 }
 </script>

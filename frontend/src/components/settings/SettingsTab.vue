@@ -163,19 +163,18 @@ const namingFields = {
 
 const draft = ref(null)
 const selectedPlace = ref('')
+const placeKeys = ref([])
 
 function refresh() {
   if (!state.settings) return
   draft.value = JSON.parse(JSON.stringify(state.settings))
-  placeKeys.value = Object.keys(draft.value.lists.products_by_place || {})
+  placeKeys.value = Object.keys(draft.value.lists?.products_by_place || {})
   if (!selectedPlace.value || !placeKeys.value.includes(selectedPlace.value)) {
     selectedPlace.value = placeKeys.value[0] || ''
   }
 }
 
 watch(() => state.settings, refresh, { immediate: true, deep: false })
-
-const placeKeys = ref([])
 
 const dirty = computed(() =>
   draft.value && state.settings ? JSON.stringify(draft.value) !== JSON.stringify(state.settings) : false

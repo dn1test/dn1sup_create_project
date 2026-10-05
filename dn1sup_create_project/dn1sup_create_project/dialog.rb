@@ -116,10 +116,12 @@ module Dn1supCreateProject
       when 'set_file_description'
         change = parse_json(param)
         safe { ProjectFiles.set_file_description(change['path'], change['rel_path'], change['description']) }
+        send_project(dlg, change['path'])
       when 'create_subfolder'
         change = parse_json(param)
         created = safe { ProjectFiles.create_subfolder(change['path'], change['name']) }
-        push_result(dlg, 'subfolder_created', 'path' => created)
+        push_result(dlg, 'subfolder_created', 'path' => created, 'name' => change['name'])
+        send_project(dlg, change['path'])
       when 'open_folder'
         safe { WinShell.open_folder(param) }
       when 'open_file'
@@ -154,7 +156,7 @@ module Dn1supCreateProject
     def pick_folder(dlg, purpose)
       default = Settings.load.dig('defaults', 'projects_root').to_s
       default = Dir.home if default.empty?
-      path = UI.select_directory('Выберите папку', default)
+      path = UI.select_directory(title: 'Выберите папку', directory: default)
       push_result(dlg, 'pick_folder', 'purpose' => purpose, 'path' => path.to_s)
     rescue StandardError => e
       push_result(dlg, 'error', 'message' => e.message)
@@ -163,7 +165,7 @@ module Dn1supCreateProject
     def register_existing(dlg)
       default = Settings.load.dig('defaults', 'projects_root').to_s
       default = Dir.home if default.empty?
-      path = UI.select_directory('Выберите папку проекта', default)
+      path = UI.select_directory(title: 'Выберите папку проекта', directory: default)
       return if path.nil? || path.empty?
 
       safe { ProjectsStore.register(path) }

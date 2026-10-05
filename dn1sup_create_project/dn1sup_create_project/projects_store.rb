@@ -29,7 +29,7 @@ module Dn1supCreateProject
       file = index_path(data_dir: data_dir)
       return [] unless File.exist?(file)
 
-      data = YAML.safe_load(File.read(file)) || {}
+      data = YAML.safe_load(File.read(file, encoding: 'UTF-8')) || {}
       Array(data['projects'])
     rescue StandardError
       []
@@ -38,7 +38,7 @@ module Dn1supCreateProject
     def save_index(entries, data_dir: nil)
       file = index_path(data_dir: data_dir)
       FileUtils.mkdir_p(File.dirname(file))
-      File.write(file, YAML.dump('projects' => entries))
+      File.write(file, YAML.dump('projects' => entries), encoding: 'UTF-8')
       entries
     end
 
@@ -95,12 +95,24 @@ module Dn1supCreateProject
 
     # -- карточка проекта -------------------------------------------------------
 
-    # Ищет YAML-карточку в корне проекта: первый *.yaml, чей первый документ
+    # Список реальных подпапок внутри проекта для UI
+    def list_subfolders(project_path)
+      return [] if project_path.nil? || !File.directory?(project_path)
+
+      Dir.children(project_path).select do |entry|
+        full = File.join(project_path, entry)
+        File.directory?(full) && !entry.start_with?('.')
+      end.sort
+    rescue StandardError
+      []
+    end
+
+    # Ищет YAML-карточку в корне проекта: первый *.{yaml,yml}, чей первый документ
     # содержит ключ 'articul' (карточка) либо это наш пустой шаблон.
     def card_path(project_path)
       return nil if project_path.nil? || !File.directory?(project_path)
 
-      candidates = Dir.glob(File.join(project_path, '*.yaml')).sort
+      candidates = Dir.glob(File.join(project_path, '*.{yaml,yml}')).sort
       candidates.each do |file|
         docs = safe_load_stream(file)
         next if docs.empty?
@@ -121,6 +133,7 @@ module Dn1supCreateProject
       history = docs[1].is_a?(Hash) ? docs[1] : { 'project_history' => [] }
       card['files'] ||= []
       card['description'] ||= ''
+      card['subfolders'] = list_subfolders(project_path)
       card['path'] = project_path.to_s.tr('\\', '/')
       [card, history]
     end
@@ -179,7 +192,7 @@ module Dn1supCreateProject
     private
 
     def safe_load_stream(file)
-      YAML.load_stream(File.read(file))
+      YAML.load_stream(File.read(file, encoding: 'UTF-8'))
     rescue StandardError
       []
     end

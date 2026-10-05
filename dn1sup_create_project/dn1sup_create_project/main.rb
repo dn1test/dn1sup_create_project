@@ -123,8 +123,14 @@ module Dn1supCreateProject
       cmd.menu_text = 'Создать проект...'
       cmd.tooltip = CMD_TOOLTIP
       cmd.status_bar_text = 'Создание и оформление мебельных проектов'
-      cmd.small_icon = File.join(PLUG_ROOT, 'icons', 'cp_16.png')
-      cmd.large_icon = File.join(PLUG_ROOT, 'icons', 'cp_24.png')
+      svg = File.join(PLUG_ROOT, 'icons', 'cp.svg')
+      if File.exist?(svg) && defined?(Sketchup) && Sketchup.respond_to?(:version) && Sketchup.version.to_i >= 16
+        cmd.small_icon = svg
+        cmd.large_icon = svg
+      else
+        cmd.small_icon = File.join(PLUG_ROOT, 'icons', 'cp_16.png')
+        cmd.large_icon = File.join(PLUG_ROOT, 'icons', 'cp_24.png')
+      end
       toolbar.add_item(cmd)
       toolbar.restore
     rescue StandardError => e

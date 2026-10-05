@@ -111,7 +111,7 @@
 </template>
 
 <script setup>
-import { reactive, computed, ref } from 'vue'
+import { reactive, computed, ref, watch } from 'vue'
 import { Store, House, Plus, FolderOpen, FolderPlus } from 'lucide-vue-next'
 import Field from './Field.vue'
 import ProjectRow from './ProjectRow.vue'
@@ -125,6 +125,15 @@ const types = [
 
 const settings = computed(() => state.settings)
 const rootFolder = ref('')
+
+// Подставляем сохранённую папку по умолчанию из настроек
+watch(
+  () => settings.value?.defaults?.projects_root,
+  (val) => {
+    if (val && !rootFolder.value) rootFolder.value = val
+  },
+  { immediate: true }
+)
 
 const form = reactive({
   type: 'commercial',
@@ -191,13 +200,12 @@ const previews = computed(() => {
   })
 })
 
-const canCreate = computed(() =>
-  rootFolder.value.trim().length > 0 &&
-  form.order.customer.trim().length > 0 &&
-  form.order.address.trim().length > 0 &&
-  form.projects.length > 0 &&
-  form.projects.every(p => p.place.trim().length > 0 && p.products.some(pr => pr.trim().length > 0))
-)
+const canCreate = computed(() => {
+  if (!rootFolder.value.trim() || !form.order.customer.trim() || !form.order.address.trim()) return false
+  if (form.type === 'commercial' && !form.order.company.trim()) return false
+  if (!form.projects.length) return false
+  return form.projects.every(p => p.place.trim().length > 0 && p.products.some(pr => pr.trim().length > 0))
+})
 
 async function chooseRoot() {
   const path = await pickFolder('root')
@@ -205,6 +213,7 @@ async function chooseRoot() {
 }
 
 function create() {
+  timestamp.value = makeTimestamp()
   createProjects({
     type: form.type,
     base_path: rootFolder.value.trim(),

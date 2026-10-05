@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <defs>
+    <linearGradient id="folderBack" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#006fb8"/>
+      <stop offset="100%" stop-color="#015995"/>
+    </linearGradient>
+    <linearGradient id="folderFront" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#36abf7"/>
+      <stop offset="100%" stop-color="#0c8ee9"/>
+    </linearGradient>
+    <linearGradient id="badgeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#22c55e"/>
+      <stop offset="100%" stop-color="#16a34a"/>
+    </linearGradient>
+  </defs>
+  <!-- Задняя стенка папки и вкладка -->
+  <path d="M2 5a2 2 0 0 1 2-2h4.5a2 2 0 0 1 1.4.6L11.5 5H20a2 2 0 0 1 2 2v4H2V5z" fill="url(#folderBack)"/>
+  <!-- Лист проекта (чертёж) -->
+  <rect x="4.5" y="4.5" width="15" height="7" rx="1" fill="#ffffff" opacity="0.95"/>
+  <line x1="7" y1="7" x2="13" y2="7" stroke="#006fb8" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="7" y1="9" x2="11" y2="9" stroke="#94a3b8" stroke-width="1" stroke-linecap="round"/>
+  <!-- Передняя стенка папки -->
+  <path d="M2 8.5C2 7.67 2.67 7 3.5 7h17c.83 0 1.5.67 1.5 1.5v10.5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.5z" fill="url(#folderFront)"/>
+  <!-- Бейдж создания проекта -->
+  <circle cx="16" cy="15" r="4.5" fill="url(#badgeGrad)"/>
+  <path d="M16 12.8v4.4M13.8 15h4.4" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+</svg>

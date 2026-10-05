@@ -233,4 +233,29 @@ module Dn1supCreateProject::Test
       assert_equal 'CF#', s2.dig('articul', 'commercial_prefix'), 'остальные ключи — из DEFAULTS'
     end
   end
+
+  test 'поиск карточки поддерживает расширения .yaml и .yml' do
+    in_tmp do |tmp, _|
+      proj = File.join(tmp, 'yml_proj')
+      FileUtils.mkdir_p(proj)
+      yml_card = File.join(proj, 'card.yml')
+      File.write(yml_card, YAML.dump('articul' => 'HF#123', 'project_name' => 'Тест YML'), encoding: 'UTF-8')
+
+      assert_equal yml_card, P.card_path(proj)
+      card, = P.read_card(proj)
+      assert_equal 'HF#123', card['articul']
+    end
+  end
+
+  test 'получение списка подпапок проекта' do
+    in_tmp do |tmp, _|
+      proj = File.join(tmp, 'sub_proj')
+      FileUtils.mkdir_p(File.join(proj, '_изображения'))
+      FileUtils.mkdir_p(File.join(proj, '_документы'))
+      FileUtils.mkdir_p(File.join(proj, '.hidden'))
+
+      subs = P.list_subfolders(proj)
+      assert_equal %w[_документы _изображения], subs
+    end
+  end
 end

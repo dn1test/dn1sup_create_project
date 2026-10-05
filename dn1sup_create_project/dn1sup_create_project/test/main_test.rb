@@ -29,5 +29,6 @@ module Dn1supCreateProject::Test
     assert(File.exist?(File.join(Dn1supCreateProject::PLUG_ROOT, 'ui', 'index.html')), 'нет ui/index.html')
     assert(File.exist?(File.join(Dn1supCreateProject::PLUG_ROOT, 'icons', 'cp_16.png')), 'нет иконки cp_16')
     assert(File.exist?(File.join(Dn1supCreateProject::PLUG_ROOT, 'icons', 'cp_24.png')), 'нет иконки cp_24')
+    assert(File.exist?(File.join(Dn1supCreateProject::PLUG_ROOT, 'icons', 'cp.svg')), 'нет иконки cp.svg')
   end
 end

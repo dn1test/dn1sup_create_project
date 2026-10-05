@@ -132,7 +132,7 @@ module Dn1supCreateProject
       d = data_dir || dir
       FileUtils.mkdir_p(d)
       file = File.join(d, 'settings.yaml')
-      user = File.exist?(file) ? (YAML.safe_load(File.read(file)) || {}) : {}
+      user = File.exist?(file) ? (YAML.safe_load(File.read(file, encoding: 'UTF-8')) || {}) : {}
       deep_merge(deep_dup(DEFAULTS), user)
     rescue StandardError => e
       puts "[CreateProject] Настройки не прочитаны (#{e.message}) — используются значения по умолчанию"
@@ -144,7 +144,7 @@ module Dn1supCreateProject
       d = data_dir || dir
       FileUtils.mkdir_p(d)
       settings['version'] = VERSION
-      File.write(File.join(d, 'settings.yaml'), YAML.dump(settings))
+      File.write(File.join(d, 'settings.yaml'), YAML.dump(settings), encoding: 'UTF-8')
       settings
     end
 
