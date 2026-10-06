@@ -2,8 +2,11 @@
   <div class="rounded-lg border border-slate-200 dark:border-slate-800 p-2.5 space-y-2">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2 min-w-0">
-        <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">
-          Проект {{ index + 1 }}
+        <div
+          class="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate"
+          :title="projectTitle"
+        >
+          {{ projectTitle }}
         </div>
         <span
           v-if="articulPreview"
@@ -32,39 +35,20 @@
           type="text"
           class="cp-input"
           :placeholder="type === 'commercial' ? 'ТЦ, павильон, улица…' : 'Кухня, гостиная…'"
-          :list="placesListId"
           @input="project.place = $event.target.value"
         />
-        <datalist v-if="placesOptions.length" :id="placesListId">
-          <option v-for="option in placesOptions" :key="option" :value="option" />
-        </datalist>
       </label>
 
       <div>
         <span class="block mb-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
           Продукт / Название мебели<span class="text-brand-500"> *</span>
         </span>
-        <div class="flex gap-1.5">
-          <input
-            v-model="project.product"
-            type="text"
-            class="cp-input"
-            :placeholder="productPlaceholder"
-            :list="productsListId"
-          />
-          <select
-            v-if="suggestions.length"
-            class="cp-input !w-auto shrink-0 text-xs"
-            value=""
-            @change="project.product = $event.target.value; $event.target.value = ''"
-          >
-            <option value="" disabled>из списка…</option>
-            <option v-for="option in suggestions" :key="option" :value="option">{{ option }}</option>
-          </select>
-        </div>
-        <datalist v-if="suggestions.length" :id="productsListId">
-          <option v-for="option in suggestions" :key="option" :value="option" />
-        </datalist>
+        <input
+          v-model="project.product"
+          type="text"
+          class="cp-input"
+          :placeholder="productPlaceholder"
+        />
       </div>
     </div>
 
@@ -75,10 +59,14 @@
           Файлы
           <span v-if="filesTotal" class="text-slate-400 font-normal">({{ filesTotal }})</span>
         </span>
-        <button class="cp-btn-ghost !py-1 text-xs" @click="pickFiles">
-          <Paperclip class="w-3.5 h-3.5" /> Добавить файлы
-        </button>
-        <input ref="fileInput" type="file" multiple class="hidden" @change="onFilesPicked" />
+        <div class="flex gap-1.5">
+          <button class="cp-btn-ghost !py-1 text-xs" :disabled="picking" @click="pickFiles">
+            <Paperclip class="w-3.5 h-3.5" /> {{ picking ? 'Выбор…' : 'Добавить файлы' }}
+          </button>
+          <button class="cp-btn-ghost !py-1 text-xs" :disabled="picking" @click="pickFilesFromFolder">
+            <FolderOpen class="w-3.5 h-3.5" /> Папку
+          </button>
+        </div>
       </div>
 
       <div
@@ -139,8 +127,8 @@
       </div>
 
       <p v-if="!project.groups.length" class="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
-        Добавьте файлы (фото, замеры, референсы) — каждая порция попадёт в свою папку
-        внутри папки этого проекта.
+        Добавьте файлы по одному («Добавить файлы») или целую папку («Папку») —
+        каждая группа попадёт в свою подпапку внутри папки проекта.
       </p>
     </div>
   </div>
@@ -149,36 +137,21 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { Box, File, FileText, FolderOpen, Image, Paperclip, Trash2, X } from 'lucide-vue-next'
-import { extractFilePaths } from '../../composables/useSketchupBridge'
-import { buildArticul, makeTimestamp, timestampWithOffset } from '../../utils/naming'
+import { pickFiles as pickFilesDialog, pickFolderFiles } from '../../composables/useSketchupBridge'
+import { buildArticul, makeTimestamp } from '../../utils/naming'
 
 const props = defineProps({
   project: { type: Object, required: true },
   index: { type: Number, required: true },
   type: { type: String, required: true },
   settings: { type: Object, default: null },
-  canRemove: { type: Boolean, default: true },
-  baseTime: { type: Date, required: true }
+  canRemove: { type: Boolean, default: true }
 })
 
 defineEmits(['remove'])
 
-const fileInput = ref(null)
-const placesListId = `places-${Math.random().toString(36).slice(2, 9)}`
-const productsListId = `products-${Math.random().toString(36).slice(2, 9)}`
+const picking = ref(false)
 let groupSeq = 0
-
-const placesOptions = computed(() =>
-  props.type === 'household' ? (props.settings?.lists.places || []) : []
-)
-
-const suggestions = computed(() => {
-  const s = props.settings
-  if (!s) return []
-  if (props.type === 'commercial') return s.lists.commercial_products || []
-  const byPlace = s.lists.products_by_place || {}
-  return byPlace[props.project.place] || s.lists.other_products || []
-})
 
 const productPlaceholder = computed(() =>
   props.type === 'commercial'
@@ -186,58 +159,76 @@ const productPlaceholder = computed(() =>
     : 'Название мебели, например Шкаф…'
 )
 
-// артикул блока: метка времени + сдвиг на номер проекта (шаг 1 секунда)
+// заголовок строки: место и продукт, пока не заполнены — «Проект N»
+const projectTitle = computed(() => {
+  const parts = [props.project.place.trim(), props.project.product.trim()].filter(Boolean)
+  return parts.length ? parts.join(' ~ ') : `Проект ${props.index + 1}`
+})
+
+// артикул блока: фиксированная метка из момента добавления проекта (project.stampSec)
 const articulPreview = computed(() => {
-  if (!props.settings) return ''
-  return buildArticul(props.settings, props.type, timestampWithOffset(props.baseTime, props.index))
+  if (!props.settings || !props.project.stampSec) return ''
+  return buildArticul(props.settings, props.type, makeTimestamp(new Date(props.project.stampSec * 1000)))
 })
 
 const filesTotal = computed(() =>
   props.project.groups.reduce((sum, g) => sum + g.files.length, 0)
 )
 
-function pickFiles() {
-  fileInput.value && fileInput.value.click()
-}
-
 const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tif', 'tiff']
 
-function onFilesPicked(event) {
-  const files = Array.from((event.target && event.target.files) || [])
-  if (!files.length) return
+// CEF не отдаёт путь из <input type="file"> — файлы выбираются нативными
+// диалогами Windows на стороне Ruby (полные пути приходят в результате).
 
-  const entries = files.map((file) => {
-    const ext = (file.name.split('.').pop() || '').toLowerCase()
-    const isImage = IMAGE_EXTS.includes(ext)
-    const entry = {
-      name: file.name,
-      path: file.path || file.fullPath || file.name,
-      ext,
-      isImage,
-      preview: ''
-    }
-    if (isImage) readPreview(file, entry)
-    return entry
-  })
-
-  // папка группы — по преобладающему типу файлов (_изображения / _документы из настроек)
-  const images = entries.filter(e => e.isImage).length
-  const folder = images * 2 >= entries.length
-    ? (props.settings?.files?.images?.folder || '_изображения')
-    : (props.settings?.files?.documents?.folder || '_документы')
-
-  props.project.groups.push({ id: ++groupSeq + '-' + Date.now(), folder, files: entries })
-  event.target.value = '' // один и тот же файл можно выбрать повторно
+function fileUrl(path) {
+  return encodeURI('file:///' + String(path).replace(/\\/g, '/')).replace(/#/g, '%23')
 }
 
-function readPreview(file, entry) {
+function entryForPath(path) {
+  const name = String(path).split(/[\\/]/).pop() || String(path)
+  const ext = (name.split('.').pop() || '').toLowerCase()
+  const isImage = IMAGE_EXTS.includes(ext)
+  return { name, path, ext, isImage, preview: isImage ? fileUrl(path) : '' }
+}
+
+function defaultFolderFor(entries) {
+  const images = entries.filter(e => e.isImage).length
+  return images * 2 >= entries.length
+    ? (props.settings?.files?.images?.folder || '_изображения')
+    : (props.settings?.files?.documents?.folder || '_документы')
+}
+
+/** Выбрать несколько файлов нативным диалогом — дописать в группу своего типа. */
+async function pickFiles() {
+  if (picking.value) return
+  picking.value = true
   try {
-    const reader = new FileReader()
-    reader.onload = () => { entry.preview = reader.result }
-    reader.onerror = () => { entry.preview = '' }
-    reader.readAsDataURL(file)
-  } catch (e) {
-    entry.preview = ''
+    const paths = await pickFilesDialog(`row-${props.project._id}-${Date.now()}`)
+    if (!paths.length) return
+    const entries = paths.map(entryForPath)
+    const autoName = defaultFolderFor(entries)
+    let group = [...props.project.groups].reverse().find(g => g.folder === autoName)
+    if (!group) {
+      group = { id: ++groupSeq + '-' + Date.now(), folder: autoName, files: [] }
+      props.project.groups.push(group)
+    }
+    group.files.push(...entries)
+  } finally {
+    picking.value = false
+  }
+}
+
+/** Выбрать папку нативным диалогом — все её файлы становятся новой группой. */
+async function pickFilesFromFolder() {
+  if (picking.value) return
+  picking.value = true
+  try {
+    const res = await pickFolderFiles(`row-${props.project._id}-folder-${Date.now()}`)
+    if (!res || !res.paths || !res.paths.length) return
+    const folder = (res.folder_name || '').trim() || '_файлы'
+    props.project.groups.push({ id: ++groupSeq + '-' + Date.now(), folder, files: res.paths.map(entryForPath) })
+  } finally {
+    picking.value = false
   }
 }
 

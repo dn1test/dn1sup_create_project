@@ -73,8 +73,3 @@ export function projectTemplate(settings, type) {
   return settings?.structure?.folders?.[type]?.project ||
     (type === 'commercial' ? '{place} ~ {product}' : '{place}')
 }
-
-/** Метка времени со сдвигом на offset секунд (проект №i в пачке). */
-export function timestampWithOffset(base, offset) {
-  return makeTimestamp(new Date(base.getTime() + offset * 1000))
-}

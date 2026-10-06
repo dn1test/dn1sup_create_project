@@ -71,7 +71,6 @@
             <button class="cp-btn-ghost !py-1 shrink-0 text-xs" @click="pickTemplate('skp')">
               <FileUp class="w-3.5 h-3.5" /> Добавить шаблон
             </button>
-            <input ref="skpInput" type="file" accept=".skp" class="hidden" @change="onTemplatePicked($event, 'skp')" />
           </div>
           <label class="block">
             <span class="block mb-0.5 text-[11px] text-slate-400">Имя .skp в папке проекта</span>
@@ -89,7 +88,6 @@
             <button class="cp-btn-ghost !py-1 shrink-0 text-xs" @click="pickTemplate('pur')">
               <FileUp class="w-3.5 h-3.5" /> Добавить шаблон
             </button>
-            <input ref="purInput" type="file" accept=".pur" class="hidden" @change="onTemplatePicked($event, 'pur')" />
           </div>
           <label class="block">
             <span class="block mb-0.5 text-[11px] text-slate-400">Имя .pur в папке проекта</span>
@@ -123,81 +121,9 @@
         </div>
         <p class="text-[10px] text-slate-400">
           Артикул = префикс + время ({{ draft.articul.timestamp_format }}).
-          Несколько проектов за раз создаются с шагом в 1 секунду — последняя цифра артикула отличается.
+          Время фиксируется в момент добавления проекта; если два проекта добавлены
+          в одну секунду, у второго время на секунду больше.
         </p>
-      </section>
-
-      <!-- Списки -->
-      <section class="cp-card p-3 space-y-3">
-        <div class="cp-label">Списки выбора</div>
-
-        <div>
-          <div class="text-[11px] text-slate-500 dark:text-slate-400 mb-1">Коммерческие продукты</div>
-          <ChipsEditor v-model="draft.lists.commercial_products" />
-        </div>
-
-        <div>
-          <div class="text-[11px] text-slate-500 dark:text-slate-400 mb-1">Места (бытовой режим)</div>
-          <ChipsEditor v-model="draft.lists.places" />
-        </div>
-
-        <div>
-          <div class="text-[11px] text-slate-500 dark:text-slate-400 mb-1">Мебель для нестандартного места</div>
-          <ChipsEditor v-model="draft.lists.other_products" />
-        </div>
-
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <div class="text-[11px] text-slate-500 dark:text-slate-400">Мебель по местам</div>
-            <div class="flex gap-1">
-              <select v-model="selectedPlace" class="cp-input !py-1 !w-auto text-xs">
-                <option v-for="place in placeKeys" :key="place" :value="place">{{ place }}</option>
-              </select>
-              <button class="cp-btn-ghost !py-1 text-xs" @click="addPlaceGroup">
-                <Plus class="w-3 h-3" /> место
-              </button>
-              <button
-                v-if="selectedPlace"
-                class="cp-btn-danger !py-1 text-xs"
-                @click="removePlaceGroup(selectedPlace)"
-              >
-                <Trash2 class="w-3 h-3" />
-              </button>
-            </div>
-          </div>
-          <div v-if="selectedPlace" class="rounded-lg border border-slate-200 dark:border-slate-800 p-2">
-            <div class="text-[10px] text-slate-400 mb-1">Мебель для «{{ selectedPlace }}»</div>
-            <ChipsEditor
-              :model-value="draft.lists.products_by_place[selectedPlace] || []"
-              @update:model-value="draft.lists.products_by_place[selectedPlace] = $event"
-            />
-          </div>
-        </div>
-      </section>
-
-      <!-- Файлы -->
-      <section class="cp-card p-3 space-y-3">
-        <div class="cp-label">Файлы проекта</div>
-        <p class="text-[10px] text-slate-400">
-          Папки по умолчанию для файлов, добавляемых кнопкой «Добавить файлы»
-          (вкладка «Проекты»), и списки расширений для определения типа.
-        </p>
-        <div class="grid grid-cols-2 gap-3">
-          <div class="space-y-1.5">
-            <label class="block">
-              <span class="block mb-0.5 text-[11px] text-slate-400">Папка изображений</span>
-              <input v-model="draft.files.images.folder" type="text" class="cp-input text-xs" />
-            </label>
-            <ChipsEditor v-model="draft.files.images.extensions" placeholder="расширения изображений" />
-          </div>
-          <div class="space-y-1.5">
-            <label class="block">
-              <span class="block mb-0.5 text-[11px] text-slate-400">Папка документов</span>
-              <input v-model="draft.files.documents.folder" type="text" class="cp-input text-xs" />
-            </label>
-            <ChipsEditor v-model="draft.files.documents.extensions" placeholder="расширения документов" />
-          </div>
-        </div>
       </section>
 
       <!-- Действия -->
@@ -218,26 +144,17 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { FileUp, FolderOpen, Plus, Trash2, Save, RotateCcw, FileCode } from 'lucide-vue-next'
-import ChipsEditor from './ChipsEditor.vue'
+import { FileUp, FolderOpen, Save, RotateCcw, FileCode } from 'lucide-vue-next'
 import {
-  state, saveSettings, resetSettings, openSettingsFile, pickFolder, addTemplate,
-  extractFilePaths, onResult
+  state, saveSettings, resetSettings, openSettingsFile, pickFolder, pickTemplate,
+  onResult
 } from '../../composables/useSketchupBridge'
 
 const draft = ref(null)
-const selectedPlace = ref('')
-const placeKeys = ref([])
-const skpInput = ref(null)
-const purInput = ref(null)
 
 function refresh() {
   if (!state.settings) return
   draft.value = JSON.parse(JSON.stringify(state.settings))
-  placeKeys.value = Object.keys(draft.value.lists?.products_by_place || {})
-  if (!selectedPlace.value || !placeKeys.value.includes(selectedPlace.value)) {
-    selectedPlace.value = placeKeys.value[0] || ''
-  }
 }
 
 watch(() => state.settings, refresh, { immediate: true, deep: false })
@@ -251,23 +168,12 @@ async function chooseRoot() {
   if (path && draft.value) draft.value.defaults.projects_root = path
 }
 
-function pickTemplate(kind) {
-  const input = kind === 'skp' ? skpInput.value : purInput.value
-  input && input.click()
-}
-
-function onTemplatePicked(event, kind) {
-  const paths = extractFilePaths(event.target)
-  if (paths[0]) addTemplate(kind, paths[0])
-  event.target.value = ''
-}
-
 // Ruby копирует шаблон в data/ и сохраняет настройки — отражаем путь в черновике,
 // не затирая несохранённые правки других полей
 let offTemplate = null
 onMounted(() => {
   offTemplate = onResult('template_added', (payload) => {
-    if (draft.value && payload.kind) {
+    if (draft.value && payload.kind && payload.path) {
       draft.value.structure.templates[payload.kind] = `data/template.${payload.kind}`
     }
   })
@@ -275,23 +181,6 @@ onMounted(() => {
 onUnmounted(() => {
   if (offTemplate) offTemplate()
 })
-
-function addPlaceGroup() {
-  const name = window.prompt('Название места:', '')
-  if (!name || !name.trim()) return
-  const key = name.trim()
-  if (!draft.value.lists.products_by_place[key]) {
-    draft.value.lists.products_by_place[key] = [...draft.value.lists.other_products]
-    placeKeys.value = Object.keys(draft.value.lists.products_by_place)
-  }
-  selectedPlace.value = key
-}
-
-function removePlaceGroup(key) {
-  delete draft.value.lists.products_by_place[key]
-  placeKeys.value = Object.keys(draft.value.lists.products_by_place)
-  selectedPlace.value = placeKeys.value[0] || ''
-}
 
 function save() {
   if (draft.value) saveSettings(JSON.parse(JSON.stringify(draft.value)))

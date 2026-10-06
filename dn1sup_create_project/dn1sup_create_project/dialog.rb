@@ -5,8 +5,9 @@
 # Разметка и логика: ui/index.html (собран из frontend/).
 #
 # Обмен Ruby ↔ JS: один экшен-колбэк 'call_ruby' (name + JSON-параметр) и
-# пуш-функции window.pushState / window.pushResult. Опция use_file_input
-# возвращает из <input type="file"> полные локальные пути.
+# пуш-функции window.pushState / window.pushResult. Файлы выбираются
+# нативными диалогами Windows (UI.openpanel / UI.select_directory) на стороне
+# Ruby: <input type="file"> в CEF не отдаёт полные пути.
 # =============================================================================
 
 require 'json'
@@ -93,6 +94,14 @@ module Dn1supCreateProject
         push_state(dlg)
       when 'pick_folder'
         pick_folder(dlg, param)
+      when 'pick_file'
+        pick_files(dlg, param)
+      when 'pick_files'
+        pick_files(dlg, param)
+      when 'pick_folder_files'
+        pick_folder_files(dlg, param)
+      when 'pick_template'
+        pick_template(dlg, param)
       when 'register_existing'
         register_existing(dlg)
       when 'unregister_project'
@@ -165,6 +174,65 @@ module Dn1supCreateProject
       push_result(dlg, 'error', 'message' => e.message)
     end
 
+    FILE_PICK_FILTER = 'Изображения|*.jpg;*.jpeg;*.png;*.gif;*.webp;*.bmp;*.tif;*.tiff|' \
+                       'Документы|*.pdf;*.doc;*.docx;*.xls;*.xlsx;*.txt;*.rtf;*.odt|' \
+                       'Все файлы|*.*'.freeze
+
+    # param: purpose — выбор нескольких файлов нативным диалогом Windows
+    # (UI.openpanel умеет только один файл, поэтому WinShell.pick_files_multi).
+    def pick_files(dlg, purpose)
+      paths = WinShell.pick_files_multi('Выберите файлы', FILE_PICK_FILTER)
+      push_result(dlg, 'pick_files', 'purpose' => purpose.to_s, 'paths' => paths, 'folder_name' => '')
+    rescue StandardError => e
+      push_result(dlg, 'error', 'message' => e.message)
+    end
+
+    # param: purpose — выбор папки; возвращает все её файлы (группа файлов проекта).
+    def pick_folder_files(dlg, purpose)
+      dir = UI.select_directory(title: 'Выберите папку с файлами', directory: Dir.home)
+      if dir.nil? || dir.to_s.empty?
+        return push_result(dlg, 'pick_folder_files', 'purpose' => purpose.to_s, 'paths' => [], 'folder_name' => '')
+      end
+
+      paths = Dir.children(dir)
+                  .map { |name| File.join(dir, name) }
+                  .select { |p| File.file?(p) && !File.basename(p).start_with?('.', '~$') }
+                  .sort
+      push_result(dlg, 'pick_folder_files', 'purpose' => purpose.to_s, 'paths' => paths,
+                  'folder_name' => File.basename(dir))
+    rescue StandardError => e
+      push_result(dlg, 'error', 'message' => e.message)
+    end
+
+    # param: 'skp'|'pur' — выбор файла шаблона нативным диалогом + добавление.
+    def pick_template(dlg, param)
+      kind = param.to_s
+      unless %w[skp pur].include?(kind)
+        return push_result(dlg, 'error', 'message' => 'Неизвестный тип шаблона')
+      end
+
+      filter = kind == 'skp' ? 'Файлы SketchUp|*.skp|Все файлы|*.*||' : 'Файлы Pro100|*.pur|Все файлы|*.*||'
+      src = UI.openpanel("Выберите шаблон .#{kind}", Dir.home, filter)
+      if src.nil? || src.to_s.empty?
+        return push_result(dlg, 'template_cancelled', 'kind' => kind)
+      end
+
+      result = safe do
+        dest_dir = File.join(PLUG_ROOT, 'data')
+        FileUtils.mkdir_p(dest_dir)
+        dest = File.join(dest_dir, "template.#{kind}")
+        FileUtils.cp(src, dest)
+        # Шаблон в data/ — сбрасываем возможный абсолютный путь в настройках.
+        settings = Settings.load
+        settings['structure']['templates'][kind] = "data/template.#{kind}"
+        Settings.save!(settings)
+        dest.tr('\\', '/')
+      end
+      push_result(dlg, 'template_added', 'kind' => kind, 'path' => result.to_s)
+    rescue StandardError => e
+      push_result(dlg, 'error', 'message' => e.message)
+    end
+
     def register_existing(dlg)
       default = Settings.load.dig('defaults', 'projects_root').to_s
       default = Dir.home if default.empty?
@@ -178,7 +246,9 @@ module Dn1supCreateProject
     end
 
     # param: {type, base_path?, order:{customer, company, phone, email, address},
-    #         projects:[{place, product, file_groups:[{folder, paths[]}]}]}
+    #         projects:[{place, product, time_sec?, file_groups:[{folder, paths[]}]}]}
+    # time_sec — epoch-секунды, зафиксированные интерфейсом при добавлении проекта
+    # (артикул); без метки проект получает base + index секунд.
     # base_path необязателен — иначе берётся defaults.projects_root из настроек.
     def create_projects(dlg, param)
       payload = parse_json(param)
@@ -208,10 +278,11 @@ module Dn1supCreateProject
 
       results = safe do
         settings = Settings.load
-        base = Time.now
 
-        # Шаг в 1 секунду между проектами: последняя цифра артикула отличается.
-        # Папку заказа (1-й уровень) для обоих типов строит Generator.create_project.
+        # Метка артикула каждого проекта зафиксирована в интерфейсе в момент
+        # добавления проекта (project['time_sec']). Папку заказа (1-й уровень)
+        # для обоих типов строит Generator.create_project.
+        times = Generator.project_times(projects, base: Time.now)
         created = projects.each_with_index.map do |project, index|
           Generator.create_project(settings,
                                    plug_root: PLUG_ROOT,
@@ -219,7 +290,7 @@ module Dn1supCreateProject
                                    type: type,
                                    order: order,
                                    project: project,
-                                   time: base + index)
+                                   time: times[index])
         end
         created.each { |res| ProjectsStore.register(res['path']) }
         remember_root(base_path)

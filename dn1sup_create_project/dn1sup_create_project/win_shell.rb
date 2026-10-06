@@ -3,7 +3,15 @@
 # dn1sup_create_project/win_shell.rb — открытие файлов и папок средствами
 # Windows. UI.openURL не открывает file:// URL (возвращает false), поэтому
 # Проводник запускаем через ShellExecuteW (не Windows — no-op).
+# Здесь же мультивыбор файлов: UI.openpanel выбирает только один файл, поэтому
+# диалог — PowerShell OpenFileDialog с Multiselect. Перехват stdout дочерних
+# процессов в SketchUp не работает, поэтому пути передаются через временный
+# файл (base64-UTF8, чтобы не зависеть от кодовой страницы консоли).
 # =============================================================================
+
+require 'base64'
+require 'open3'
+require 'tmpdir'
 
 module Dn1supCreateProject
   module WinShell
@@ -68,11 +76,62 @@ module Dn1supCreateProject
       false
     end
 
-    private
+    # Мультивыбор файлов нативным диалогом Windows. Возвращает массив полных
+    # путей ([] — отмена или не Windows).
+    def pick_files_multi(title, filter)
+      return [] unless win?
 
-    # LPCWSTR: UTF-16LE с нулевым терминатором
-    def wide(str)
-      (str + "\0").encode('UTF-16LE')
+      out_file = File.join(Dir.tmpdir, "cp_pick_#{Process.pid}_#{Time.now.to_i}_#{rand(10_000)}.b64")
+      script = <<~PS
+        Add-Type -AssemblyName System.Windows.Forms | Out-Null
+        $owner = New-Object System.Windows.Forms.Form
+        $owner.TopMost = $true
+        $owner.ShowInTaskbar = $false
+        $dlg = New-Object System.Windows.Forms.OpenFileDialog
+        $dlg.Multiselect = $true
+        $dlg.Title = '#{ps_escape(title)}'
+        $dlg.Filter = '#{ps_escape(filter)}'
+        if ($dlg.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) {
+          [IO.File]::WriteAllText('#{ps_escape(out_file)}', [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($dlg.FileNames -join "`n")))
+        }
+      PS
+      encoded = Base64.strict_encode64(script.encode('UTF-16LE'))
+      return [] unless run_powershell_hidden(encoded)
+
+      paths = []
+      if File.exist?(out_file)
+        paths = Base64.decode64(File.read(out_file)).force_encoding(Encoding::UTF_8)
+                        .split("\n").map(&:strip).reject(&:empty?)
+      end
+      File.delete(out_file) if File.exist?(out_file)
+      paths
     end
+
+  private
+
+  # LPCWSTR: UTF-16LE с нулевым терминатором
+  def wide(str)
+    (str + "\0").encode('UTF-16LE')
+  end
+
+  def win?
+    Gem.win_platform?
+  end
+
+  def ps_escape(text)
+    text.to_s.gsub("'", "''")
+  end
+
+  # Запуск powershell без окна консоли: WScript.Shell.Run(окно=0, ждать=true).
+  # Open3 здесь не годится — у SketchUp нет консоли, и powershell.exe получает
+  # собственную видимую консоль (чёрное окно на время выбора файлов).
+  def run_powershell_hidden(encoded_command)
+    require 'win32ole'
+    shell = WIN32OLE.new('WScript.Shell')
+    shell.Run("powershell.exe -NoProfile -STA -EncodedCommand #{encoded_command}", 0, true) == 0
+  rescue StandardError, ScriptError
+    _out, status = Open3.capture2('powershell.exe', '-NoProfile', '-STA', '-EncodedCommand', encoded_command)
+    status&.success?
+  end
   end
 end

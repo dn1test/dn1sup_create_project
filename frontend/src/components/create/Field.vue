@@ -9,28 +9,19 @@
         type="text"
         class="w-full bg-transparent text-sm text-inherit placeholder-slate-300 dark:placeholder-slate-600"
         :placeholder="placeholder"
-        :list="listId"
         @input="$emit('update:modelValue', $event.target.value)"
       />
-      <datalist v-if="options && options.length" :id="listId">
-        <option v-for="option in options" :key="option" :value="option" />
-      </datalist>
     </label>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-
-const props = defineProps({
+defineProps({
   modelValue: { type: String, default: '' },
   label: { type: String, required: true },
   placeholder: { type: String, default: '' },
-  required: { type: Boolean, default: false },
-  options: { type: Array, default: null }
+  required: { type: Boolean, default: false }
 })
 
 defineEmits(['update:modelValue'])
-
-const listId = computed(() => `dl-${Math.random().toString(36).slice(2, 9)}`)
 </script>

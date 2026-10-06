@@ -26,7 +26,6 @@
     <main class="flex-1 overflow-y-auto p-3">
       <KeepAlive>
         <CreateTab v-if="activeTab === 'create'" @go-to-settings="activeTab = 'settings'" />
-        <ProjectsTab v-else-if="activeTab === 'projects'" />
         <SettingsTab v-else-if="activeTab === 'settings'" />
       </KeepAlive>
     </main>
@@ -63,38 +62,21 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { FolderPlus, Layers, Settings2, CheckCircle, AlertCircle } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import { FolderPlus, Settings2, CheckCircle, AlertCircle } from 'lucide-vue-next'
 import Header from './components/Header.vue'
 import CreateTab from './components/create/CreateTab.vue'
-import ProjectsTab from './components/projects/ProjectsTab.vue'
 import SettingsTab from './components/settings/SettingsTab.vue'
-import { state, loadState, openSettingsFile, onResult, openProject } from './composables/useSketchupBridge'
+import { state, loadState, openSettingsFile } from './composables/useSketchupBridge'
 
 const activeTab = ref('create')
 const tabs = computed(() => [
   { id: 'create', label: 'Создать', icon: FolderPlus },
-  { id: 'projects', label: 'Проекты', icon: Layers, badge: state.projects.length || null },
   { id: 'settings', label: 'Настройки', icon: Settings2 }
 ])
 
-let offCreated = null
 onMounted(() => {
   loadState()
-  offCreated = onResult('created', (payload) => {
-    if (payload && payload.results && payload.results.length) {
-      activeTab.value = 'projects'
-      const first = payload.results[0]
-      if (first && first.path) {
-        state.selected = { path: first.path, card: null, history: null }
-        openProject(first.path)
-      }
-    }
-  })
-})
-
-onUnmounted(() => {
-  if (offCreated) offCreated()
 })
 </script>
 

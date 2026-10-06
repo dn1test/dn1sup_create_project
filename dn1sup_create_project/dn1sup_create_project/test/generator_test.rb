@@ -25,6 +25,28 @@ module Dn1supCreateProject::Test
     assert_equal '261005_193000', g.capture_timestamp(S, time)
   end
 
+  test 'метки пачки: явная time_sec уважается, без метки — base + index' do
+    g = Dn1supCreateProject::Generator
+    stamp = Time.new(2026, 10, 5, 21, 45, 10).to_i
+    base = Time.at(stamp - 10)
+    times = g.project_times([{ 'time_sec' => stamp }, {}], base: base)
+    assert_equal stamp, times[0].to_i
+    assert_equal stamp - 9, times[1].to_i # base + index
+  end
+
+  test 'метки пачки: совпавшие секунды сдвигаются на +1 с' do
+    g = Dn1supCreateProject::Generator
+    stamp = Time.new(2026, 10, 5, 21, 45, 10).to_i
+    base = Time.at(stamp - 10) # fallback не пересекается с явными метками
+    times = g.project_times(
+      [{ 'time_sec' => stamp }, { 'time_sec' => stamp }, {}],
+      base: base
+    )
+    assert_equal stamp, times[0].to_i
+    assert_equal stamp + 1, times[1].to_i
+    assert_equal stamp - 8, times[2].to_i # base + 2, без сдвига
+  end
+
   test 'санитизация имён: <> удаляются, запрещённые заменяются на _' do
     g = Dn1supCreateProject::Generator
     assert_equal 'Иван_Петров', g.sanitize_filename('Иван:Петров')

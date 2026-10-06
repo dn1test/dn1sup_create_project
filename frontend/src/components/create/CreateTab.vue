@@ -32,74 +32,67 @@
           :type="form.type"
           :settings="settings"
           :can-remove="form.projects.length > 1"
-          :base-time="baseTime"
           @remove="removeProject(index)"
         />
       </section>
 
-      <!-- Правая колонка: заказчик -->
-      <section class="cp-card p-3 space-y-2 md:sticky md:top-0">
-        <div class="cp-label">Заказчик</div>
-        <Field
-          v-model="form.order.customer"
-          label="Имя заказчика"
-          placeholder="Иван"
-          required
-        />
-        <Field
-          v-if="form.type === 'commercial'"
-          v-model="form.order.company"
-          label="Название фирмы"
-          placeholder="ООО «Стройторг»"
-          required
-        />
-        <Field v-model="form.order.phone" label="Телефон" placeholder="+375 29 123-45-67" />
-        <Field v-model="form.order.email" label="Почта электронная" placeholder="ivan@mail.by" />
-        <Field
-          v-model="form.order.address"
-          label="Адрес установки"
-          placeholder="Минск, ул. Ленина 5"
-          required
-        />
-      </section>
+      <!-- Правая колонка: заказчик + предпросмотр -->
+      <div class="space-y-3 md:sticky md:top-0">
+        <section class="cp-card p-3 space-y-2">
+          <div class="cp-label">Заказчик</div>
+          <Field
+            v-model="form.order.customer"
+            label="Имя заказчика"
+            placeholder="Иван"
+            required
+          />
+          <Field
+            v-if="form.type === 'commercial'"
+            v-model="form.order.company"
+            label="Название фирмы"
+            placeholder="ООО «Стройторг»"
+            required
+          />
+          <Field v-model="form.order.phone" label="Телефон" placeholder="+375 29 123-45-67" />
+          <Field v-model="form.order.email" label="Почта электронная" placeholder="ivan@mail.by" />
+          <Field
+            v-model="form.order.address"
+            label="Адрес установки"
+            placeholder="Минск, ул. Ленина 5"
+            required
+          />
+        </section>
+
+        <!-- Предпросмотр -->
+        <section class="cp-card p-3">
+          <div class="cp-label mb-2">Предпросмотр</div>
+          <div class="space-y-1.5">
+            <div v-for="(preview, index) in previews" :key="index" class="flex items-start gap-2 text-xs">
+              <span class="cp-label shrink-0 pt-0.5 w-6 text-right">{{ index + 1 }}</span>
+              <div class="min-w-0">
+                <div class="font-mono text-[11px] text-slate-700 dark:text-slate-200 break-all">
+                  {{ preview.folder }}
+                </div>
+                <div class="text-[10px] text-slate-400 font-mono break-all">{{ preview.files }}</div>
+              </div>
+            </div>
+            <p v-if="!previews.length" class="text-xs text-slate-400">
+              Заполните место и продукт, чтобы увидеть структуру.
+            </p>
+          </div>
+        </section>
+      </div>
     </div>
 
-    <!-- Куда сохранится -->
-    <section class="cp-card p-3">
+    <!-- Предупреждение: директория проектов выбирается только в Настройках -->
+    <section v-if="!rootFolder" class="cp-card p-3 border border-amber-300 dark:border-amber-800">
       <div class="flex items-center justify-between gap-2">
-        <div class="min-w-0">
-          <div class="cp-label">Директория проектов</div>
-          <p
-            v-if="rootFolder"
-            class="text-[11px] font-mono text-slate-500 dark:text-slate-400 truncate"
-            :title="rootFolder"
-          >{{ rootFolder }}</p>
-          <p v-else class="text-[11px] text-amber-500">
-            Не задана — укажите её в Настройках, иначе создание будет недоступно.
-          </p>
-        </div>
+        <p class="text-xs text-amber-600 dark:text-amber-400">
+          Директория проектов не задана — выберите её в Настройках, иначе создание недоступно.
+        </p>
         <button class="cp-btn-ghost shrink-0 !py-1 text-xs" @click="$emit('go-to-settings')">
           <Settings2 class="w-3.5 h-3.5" /> Настройки
         </button>
-      </div>
-    </section>
-
-    <!-- Предпросмотр -->
-    <section class="cp-card p-3">
-      <div class="cp-label mb-2">Предпросмотр</div>
-      <div class="space-y-1.5">
-        <div v-for="(preview, index) in previews" :key="index" class="flex items-start gap-2 text-xs">
-          <span class="cp-label shrink-0 pt-0.5 w-14 text-right">{{ index + 1 }}</span>
-          <div class="min-w-0">
-            <div class="font-mono text-[11px] text-slate-700 dark:text-slate-200 break-all">
-              {{ preview.folder }}
-            </div>
-            <div class="text-[10px] text-slate-400 font-mono break-all">{{ preview.files }}</div>
-          </div>
-        </div>
-        <p v-if="!previews.length" class="text-xs text-slate-400">
-          Заполните место и продукт, чтобы увидеть структуру.
-        </p>
       </div>
     </section>
 
@@ -112,15 +105,15 @@
 </template>
 
 <script setup>
-import { computed, defineEmits, reactive, ref, watch } from 'vue'
+import { computed, defineEmits, reactive, watch } from 'vue'
 import { FolderPlus, House, Plus, Repeat, Settings2, Store } from 'lucide-vue-next'
 import Field from './Field.vue'
 import ProjectRow from './ProjectRow.vue'
 import TypeSelect from './TypeSelect.vue'
 import { state, createProjects, toast } from '../../composables/useSketchupBridge'
 import {
-  buildArticul, fillTemplate, orderTemplate,
-  projectTemplate, templateVars, timestampWithOffset
+  buildArticul, fillTemplate, makeTimestamp, orderTemplate,
+  projectTemplate, templateVars
 } from '../../utils/naming'
 
 const emit = defineEmits(['go-to-settings'])
@@ -132,14 +125,12 @@ const typeMeta = computed(() => state.orderType === 'commercial'
   : { title: 'Бытовой проект', icon: House })
 
 let projectSeq = 0
+let lastStampSec = 0
 const form = reactive({
   type: null,
   order: { company: '', customer: '', phone: '', email: '', address: '' },
   projects: []
 })
-
-// базовая метка времени: проект №i получает метку +i секунд, артикулы различаются
-const baseTime = ref(new Date())
 
 // при выборе/смене типа — начинаем новый список проектов (данные заказчика сохраняем)
 watch(
@@ -153,13 +144,27 @@ watch(
   { immediate: true }
 )
 
+// артикул фиксируется в момент добавления проекта: метка «сейчас»,
+// а если предыдущая строка заняла ту же секунду — на секунду позже
 function addProject() {
-  form.projects.push({ _id: ++projectSeq, place: '', product: '', groups: [] })
+  const nowSec = Math.floor(Date.now() / 1000)
+  lastStampSec = nowSec > lastStampSec ? nowSec : lastStampSec + 1
+  form.projects.push({ _id: ++projectSeq, place: '', product: '', groups: [], stampSec: lastStampSec })
 }
 
 function removeProject(index) {
   form.projects.splice(index, 1)
 }
+
+// после успешного создания начинаем новую пачку (данные заказчика остаются)
+watch(
+  () => state.lastCreated,
+  (at) => {
+    if (!at) return
+    form.projects = []
+    addProject()
+  }
+)
 
 function changeType() {
   state.orderType = null
@@ -170,9 +175,9 @@ const rootFolder = computed(() => settings.value?.defaults?.projects_root || '')
 const previews = computed(() => {
   const s = settings.value
   if (!s || !form.type) return []
-  return form.projects.map((project, index) => {
+  return form.projects.map((project) => {
     const order = { ...form.order, place: project.place }
-    const timestamp = timestampWithOffset(baseTime.value, index)
+    const timestamp = makeTimestamp(new Date(project.stampSec * 1000))
     const vars = templateVars(form.type, order, buildArticul(s, form.type, timestamp), project.product, timestamp)
     const orderFolder = fillTemplate(orderTemplate(s, form.type), vars)
     const projectFolder = fillTemplate(projectTemplate(s, form.type), vars)
@@ -202,13 +207,13 @@ function create() {
     toast('err', 'Укажите директорию проектов в Настройках')
     return
   }
-  baseTime.value = new Date() // фиксируем метку пачки: +1 секунда на проект
   createProjects({
     type: form.type,
     order: { ...form.order },
     projects: form.projects.map(p => ({
       place: p.place.trim(),
       product: p.product.trim(),
+      time_sec: p.stampSec, // артикул зафиксирован в момент добавления проекта
       file_groups: p.groups
         .filter(g => g.files.length)
         .map(g => ({ folder: g.folder.trim(), paths: g.files.map(f => f.path) }))

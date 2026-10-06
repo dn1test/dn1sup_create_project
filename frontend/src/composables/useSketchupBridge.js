@@ -31,7 +31,8 @@ const state = reactive({
   projects: [],     // реестр проектов
   selected: null,   // открытый проект: { path, card, history }
   toast: null,      // { kind: 'ok' | 'err', text }
-  orderType: null   // тип заказа на вкладке «Создать»: 'commercial' | 'household' | null (вопрос при открытии)
+  orderType: null,  // тип заказа на вкладке «Создать»: 'commercial' | 'household' | null (вопрос при открытии)
+  lastCreated: 0    // Date.now() последнего успешного создания проектов (сигнал вкладке «Создать» очистить форму)
 })
 
 let toastTimer = null
@@ -53,7 +54,10 @@ function emitResult(kind, payload) {
   }
   if (kind === 'settings_saved') toast('ok', 'Настройки сохранены')
   if (kind === 'template_added') toast('ok', `Шаблон .${payload.kind} обновлён`)
-  if (kind === 'created' && payload.results) toast('ok', `Создано проектов: ${payload.results.length}`)
+  if (kind === 'created' && payload.results) {
+    toast('ok', `Создано проектов: ${payload.results.length}`)
+    state.lastCreated = Date.now()
+  }
   if (kind === 'subfolder_created') toast('ok', `Папка «${payload.name || ''}» создана`)
   if (kind === 'add_files') {
     const n = (payload.added || []).length
@@ -66,6 +70,20 @@ function emitResult(kind, payload) {
     if (resolve) {
       pickResolvers.delete(payload.purpose)
       resolve(payload.path || '')
+    }
+  }
+  if (kind === 'pick_files') {
+    const resolve = pickResolvers.get(payload.purpose)
+    if (resolve) {
+      pickResolvers.delete(payload.purpose)
+      resolve(payload.paths || [])
+    }
+  }
+  if (kind === 'pick_folder_files') {
+    const resolve = pickResolvers.get(payload.purpose)
+    if (resolve) {
+      pickResolvers.delete(payload.purpose)
+      resolve(payload)
     }
   }
 
@@ -127,6 +145,53 @@ export function pickFolder(purpose) {
   })
 }
 
+/** Нативный мультивыбор файлов (Ruby возвращает массив полных путей). */
+export function pickFiles(purpose) {
+  return new Promise((resolve) => {
+    if (isMock) {
+      const raw = window.prompt('Пути к файлам через ; (mock):', '')
+      resolve(raw ? raw.split(';').map(s => s.trim()).filter(Boolean) : [])
+      return
+    }
+    pickResolvers.set(purpose, resolve)
+    callRuby('pick_files', purpose)
+    // страховка: если ответ не пришёл за 5 минут — отпускаем
+    setTimeout(() => {
+      if (pickResolvers.has(purpose)) {
+        pickResolvers.delete(purpose)
+        resolve([])
+      }
+    }, 300000)
+  })
+}
+
+/** Нативный выбор папки: Ruby возвращает { paths, folder_name } или null. */
+export function pickFolderFiles(purpose) {
+  return new Promise((resolve) => {
+    if (isMock) {
+      resolve(null)
+      return
+    }
+    pickResolvers.set(purpose, resolve)
+    callRuby('pick_folder_files', purpose)
+    setTimeout(() => {
+      if (pickResolvers.has(purpose)) {
+        pickResolvers.delete(purpose)
+        resolve(null)
+      }
+    }, 120000)
+  })
+}
+
+/** Выбрать файл-шаблон (.skp/.pur) нативным диалогом — Ruby копирует в data/. */
+export function pickTemplate(kind) {
+  if (isMock) {
+    toast('ok', `Шаблон .${kind} обновлён (mock)`)
+    return
+  }
+  callRuby('pick_template', kind)
+}
+
 export function onResult(kind, fn) {
   if (!resultHandlers.has(kind)) resultHandlers.set(kind, new Set())
   resultHandlers.get(kind).add(fn)
@@ -170,15 +235,6 @@ export function createProjects(payload) {
     return
   }
   callRubyJson('create_projects', payload)
-}
-
-/** Копирует выбранный файл-шаблон (.skp/.pur) в data/ расширения. */
-export function addTemplate(kind, path) {
-  if (isMock) {
-    toast('ok', `Шаблон .${kind} обновлён (mock)`)
-    return
-  }
-  callRubyJson('add_template', { kind, path })
 }
 
 export function openProject(path) {
@@ -259,16 +315,6 @@ export function openSettingsFile() {
 export function updateFromDev() {
   if (isMock) { toast('ok', 'Обновление из dev-папки (mock)'); return }
   callRuby('update_from_dev')
-}
-
-/** Пути из <input type="file">: с use_file_input File несёт полный путь. */
-export function extractFilePaths(input) {
-  const files = Array.from((input && input.files) || [])
-  let paths = files.map(f => f.path || f.fullPath || '').filter(Boolean)
-  if (!paths.length && input && input.value && /[\\/]/.test(input.value)) {
-    paths = [input.value]
-  }
-  return paths
 }
 
 export { state, isMock, toast }
