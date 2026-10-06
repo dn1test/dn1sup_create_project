@@ -25,7 +25,7 @@
 
     <main class="flex-1 overflow-y-auto p-3">
       <KeepAlive>
-        <CreateTab v-if="activeTab === 'create'" />
+        <CreateTab v-if="activeTab === 'create'" @go-to-settings="activeTab = 'settings'" />
         <ProjectsTab v-else-if="activeTab === 'projects'" />
         <SettingsTab v-else-if="activeTab === 'settings'" />
       </KeepAlive>

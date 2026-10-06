@@ -46,6 +46,12 @@
                 <span v-if="detail.card.project_type">{{ detail.card.project_type }}</span>
                 <span v-if="detail.card.place">{{ detail.card.place }}</span>
                 <span v-if="detail.card.product">{{ detail.card.product }}</span>
+                <span v-if="detail.card.phone" class="flex items-center gap-0.5">
+                  <Phone class="w-2.5 h-2.5" /> {{ detail.card.phone }}
+                </span>
+                <span v-if="detail.card.email" class="flex items-center gap-0.5">
+                  <Mail class="w-2.5 h-2.5" /> {{ detail.card.email }}
+                </span>
               </div>
             </div>
             <div class="flex shrink-0 gap-1">
@@ -142,7 +148,7 @@
 
 <script setup>
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
-import { Folder, FolderInput, FolderOpen, FolderMinus, FolderPlus, Paperclip, Save } from 'lucide-vue-next'
+import { Folder, FolderInput, FolderOpen, FolderMinus, FolderPlus, Mail, Paperclip, Phone, Save } from 'lucide-vue-next'
 import FilesPanel from './FilesPanel.vue'
 import {
   state, openProject, registerExisting, saveDescription, openFolder, createSubfolder,

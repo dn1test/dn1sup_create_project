@@ -33,6 +33,33 @@ module Dn1supCreateProject
       end
     end
 
+    # Копирует одну группу файлов в именованную подпапку проекта (без карточки —
+    # используется генератором при создании проекта до записи YAML).
+    # Возвращает массив записей для card['files'].
+    def copy_batch(settings, project_path, folder, paths)
+      dest_dir = File.join(project_path, folder)
+      FileUtils.mkdir_p(dest_dir)
+
+      Array(paths).filter_map do |src|
+        src = src.to_s
+        next unless File.file?(src)
+
+        dest = unique_destination(dest_dir, File.basename(src))
+        begin
+          FileUtils.cp(src, dest)
+        rescue StandardError => e
+          puts "[CreateProject] Файл не скопирован (#{e.message}): #{src}"
+          next
+        end
+        {
+          'path' => rel_path(project_path, dest),
+          'category' => category_for(settings, src),
+          'description' => '',
+          'added_at' => Time.now.strftime('%Y-%m-%d %H:%M')
+        }
+      end
+    end
+
     # Копирует файлы в проект и регистрирует их в карточке.
     # paths — массив исходных путей; category — nil (авто) или 'image'/'document'/'other';
     # descriptions — { исходное_имя_файла => описание } (необязательно).
@@ -61,7 +88,7 @@ module Dn1supCreateProject
           next
         end
 
-        rel = dest[project_path.to_s.length..-1].to_s.sub(%r{\A[/\\]}, '').tr('\\', '/')
+        rel = rel_path(project_path, dest)
         entry = {
           'path' => rel,
           'category' => cat,
@@ -131,6 +158,11 @@ module Dn1supCreateProject
     end
 
     private
+
+    # Путь файла относительно корня проекта, с прямыми слэшами.
+    def rel_path(project_path, full_path)
+      full_path[project_path.to_s.length..-1].to_s.sub(%r{\A[/\\]}, '').tr('\\', '/')
+    end
 
     # Не перезаписываем существующие: "фото.jpg" → "фото (1).jpg".
     def unique_destination(dir, filename)

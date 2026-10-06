@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 # =============================================================================
-# dn1sup_create_project/test/structure_test.rb — создание структуры на диске,
-# YAML-карточка, файлы проекта, реестр. Работает во временной папке.
+# dn1sup_create_project/test/structure_test.rb — создание структуры на диске
+# (заказ → проект), файловые группы, YAML-карточка, файлы, реестр.
+# Работает во временной папке.
 # =============================================================================
 
 require_relative 'test_helper'
@@ -12,6 +13,7 @@ module Dn1supCreateProject::Test
   G = Dn1supCreateProject::Generator
   P = Dn1supCreateProject::ProjectsStore
   F = Dn1supCreateProject::ProjectFiles
+  T = Time.new(2026, 10, 5, 19, 30, 0) # → метка 261005_193000
 
   def self.in_tmp
     Dir.mktmpdir('cp_test') do |tmp|
@@ -20,11 +22,12 @@ module Dn1supCreateProject::Test
     end
   end
 
-  test 'создание коммерческого проекта: папки, файлы, YAML' do
+  test 'создание коммерческого проекта: заказ → проект → файлы → YAML' do
     in_tmp do |tmp, _|
       settings = Dn1supCreateProject::Settings.load
-      order = { 'customer' => 'Иван', 'company' => 'ООО Торг', 'address' => 'Минск' }
-      project = { 'place' => 'ТЦ Малиновка', 'products' => ['Торговый остров'] }
+      order = { 'customer' => 'Иван', 'company' => 'ООО Торг', 'address' => 'Минск',
+                'phone' => '+375 29 111-22-33', 'email' => 'ivan@mail.by' }
+      project = { 'place' => 'ТЦ Малиновка', 'product' => 'Торговый остров' }
 
       res = G.create_project(settings,
                              plug_root: Dn1supCreateProject::PLUG_ROOT,
@@ -32,26 +35,30 @@ module Dn1supCreateProject::Test
                              type: 'commercial',
                              order: order,
                              project: project,
-                             counter: 1,
-                             timestamp: '261005193000')
+                             time: T)
 
       path = res['path']
       assert(Dir.exist?(path), "нет папки проекта: #{path}")
-      assert_match(/CF#261005193000 ~ Иван ~ ООО Торг ~ Минск, ТЦ Малиновка ~ Торговый остров\z/, path)
+      # папка заказа 1-го уровня, внутри — папка проекта 2-го уровня
+      assert_match(%r{/Иван ~ ООО Торг ~ Минск/ТЦ Малиновка ~ Торговый остров\z}, path)
 
-      settings.dig('structure', 'subfolders').each do |sub|
-        assert(Dir.exist?(File.join(path, sub)), "нет подпапки #{sub}")
-      end
+      # подпапки больше не создаются автоматически
+      subs = Dir.children(path).select { |c| Dir.exist?(File.join(path, c)) }
+      assert(subs.empty?, "автоподпапок быть не должно, есть: #{subs.inspect}")
 
       assert(File.exist?(File.join(path, res['skp'])), 'нет .skp')
+      assert_equal 'ТЦ Малиновка ~ Торговый остров.skp', res['skp']
       assert(File.exist?(File.join(path, res['pur'])), 'нет .pur')
-      assert(File.exist?(File.join(path, res['yaml'])), 'нет .yaml')
+      assert_equal 'CF#261005_193000.pur', res['pur']
+      assert_equal 'CF#261005_193000.yaml', res['yaml']
 
       card, history = P.read_card(path)
-      assert_equal 'CF#261005193000', card['articul']
+      assert_equal 'CF#261005_193000', card['articul']
       assert_equal 'Коммерческая', card['project_type']
       assert_equal 'ООО Торг, Торговый остров | ТЦ Малиновка, Минск', card['project_name']
       assert_equal 'ООО Торг', card['company_name']
+      assert_equal '+375 29 111-22-33', card['phone']
+      assert_equal 'ivan@mail.by', card['email']
       assert_equal '', card['description']
       assert_equal [], card['files']
       assert_equal 1, history['project_history'].size
@@ -59,33 +66,95 @@ module Dn1supCreateProject::Test
     end
   end
 
-  test 'создание бытового заказа: общая папка и подпапка проекта' do
+  test 'создание бытового проекта: папка заказа и папка проекта' do
     in_tmp do |tmp, _|
       settings = Dn1supCreateProject::Settings.load
       order = { 'customer' => 'Иван', 'address' => 'Малиновка 5' }
-      order_folder = G.sanitize_filename(G.fill_template('{customer} ~ {address}',
-                                                         'customer' => 'Иван', 'address' => 'Малиновка 5'))
 
       res = G.create_project(settings,
                              plug_root: Dn1supCreateProject::PLUG_ROOT,
-                             base_path: File.join(tmp, order_folder),
+                             base_path: tmp,
                              type: 'household',
-                             order: order.merge('place' => 'Кухня'),
-                             project: { 'place' => 'Кухня', 'products' => %w[Шкаф Полки] },
-                             counter: 2,
-                             timestamp: '261005193000')
+                             order: order,
+                             project: { 'place' => 'Кухня', 'product' => 'Шкаф' },
+                             time: T)
 
       path = res['path']
       assert(Dir.exist?(path))
-      assert_match(/HF#26100519300002 ~ Кухня\z/, path)
-      # бытовое имя .skp: Заказчик ~ Адрес ~ Место
-      assert_equal 'Иван ~ Малиновка 5 ~ Кухня.skp', res['skp']
-      assert_equal 'HF#26100519300002.pur', res['pur']
+      assert_match(%r{/Иван ~ Малиновка 5/Кухня\z}, path)
+      # .skp теперь «Место ~ Продукт», .pur — по артикулу
+      assert_equal 'Кухня ~ Шкаф.skp', res['skp']
+      assert_equal 'HF#261005_193000.pur', res['pur']
 
       card, = P.read_card(path)
       assert_equal 'Бытовая', card['project_type']
-      assert_equal 'Шкаф, Полки', card['product']
-      assert_equal 'Шкаф, Полки, Кухня | Иван, Малиновка 5', card['project_name']
+      assert_equal 'Шкаф', card['product']
+      assert_equal 'Шкаф, Кухня | Иван, Малиновка 5', card['project_name']
+    end
+  end
+
+  test 'файловые группы копируются в именованные папки проекта и в карточку' do
+    in_tmp do |tmp, _|
+      settings = Dn1supCreateProject::Settings.load
+      src_img = File.join(tmp, 'референс.jpg')
+      src_doc = File.join(tmp, 'замер.pdf')
+      File.write(src_img, 'img')
+      File.write(src_doc, 'doc')
+
+      res = G.create_project(settings,
+                             plug_root: Dn1supCreateProject::PLUG_ROOT,
+                             base_path: tmp,
+                             type: 'household',
+                             order: { 'customer' => 'Иван', 'address' => 'Малиновка' },
+                             project: {
+                               'place' => 'Гостиная', 'product' => 'Стенка',
+                               'file_groups' => [
+                                 { 'folder' => 'Фото мебели', 'paths' => [src_img] },
+                                 { 'folder' => 'Замеры', 'paths' => [src_doc, File.join(tmp, 'нет_такого.pdf')] }
+                               ]
+                             },
+                             time: T)
+
+      path = res['path']
+      assert(File.file?(File.join(path, 'Фото мебели', 'референс.jpg')), 'картинка не в своей папке')
+      assert(File.file?(File.join(path, 'Замеры', 'замер.pdf')), 'документ не в своей папке')
+
+      card, = P.read_card(path)
+      assert_equal 2, card['files'].size
+      img = card['files'].find { |f| f['category'] == 'image' }
+      doc = card['files'].find { |f| f['category'] == 'document' }
+      assert_equal 'Фото мебели/референс.jpg', img['path']
+      assert_equal 'Замеры/замер.pdf', doc['path']
+    end
+  end
+
+  test 'повторное создание проекта в той же папке получает суффикс с артикулом' do
+    in_tmp do |tmp, _|
+      settings = Dn1supCreateProject::Settings.load
+      order = { 'customer' => 'Иван', 'address' => 'Малиновка' }
+      project = { 'place' => 'Кухня', 'product' => 'Шкаф' }
+
+      first = G.create_project(settings, plug_root: Dn1supCreateProject::PLUG_ROOT,
+                               base_path: tmp, type: 'household', order: order,
+                               project: project, time: T)
+      second = G.create_project(settings, plug_root: Dn1supCreateProject::PLUG_ROOT,
+                                base_path: tmp, type: 'household', order: order,
+                                project: project, time: T)
+
+      assert(first['path'] != second['path'], 'проекты не должны попадать в одну папку')
+      assert_match(/Кухня \(HF#261005_193000\)\z/, second['path'])
+      assert(Dir.exist?(second['path']))
+    end
+  end
+
+  test 'папка заказа для обоих типов (order_root)' do
+    in_tmp do |tmp, _|
+      settings = Dn1supCreateProject::Settings.load
+      comm = G.order_root(settings, 'commercial', tmp,
+                          { 'customer' => 'Иван', 'company' => 'ООО Торг', 'address' => 'Минск' })
+      hh = G.order_root(settings, 'household', tmp, { 'customer' => 'Иван', 'address' => 'Малиновка' })
+      assert_equal 'Иван ~ ООО Торг ~ Минск', File.basename(comm)
+      assert_equal 'Иван ~ Малиновка', File.basename(hh)
     end
   end
 
@@ -114,10 +183,10 @@ module Dn1supCreateProject::Test
 
   test 'реестр: список проекта с карточкой отдаёт данные карточки' do
     in_tmp do |tmp, data_dir|
-      project_path = File.join(tmp, 'CF#261005193000 ~ Иван')
+      project_path = File.join(tmp, 'CF#261005_193000 ~ Иван')
       FileUtils.mkdir_p(project_path)
       card = { 'project_name' => 'ООО Торг, Остров | ТЦ, Минск', 'project_type' => 'Коммерческая',
-               'articul' => 'CF#261005193000', 'place' => 'ТЦ', 'product' => 'Остров',
+               'articul' => 'CF#261005_193000', 'place' => 'ТЦ', 'product' => 'Остров',
                'customer_name' => 'Иван', 'company_name' => 'ООО Торг', 'address' => 'Минск',
                'description' => 'тест', 'files' => [{ 'path' => '_документы/a.pdf', 'category' => 'document' }] }
       P.write_card(project_path, card, { 'project_history' => [] })
@@ -127,7 +196,7 @@ module Dn1supCreateProject::Test
       assert_equal 1, list.size
       entry = list.first
       assert_equal false, entry['unknown'], 'проект с карточкой не unknown'
-      assert_equal 'CF#261005193000', entry['articul']
+      assert_equal 'CF#261005_193000', entry['articul']
       assert_equal 'тест', entry['description']
       assert_equal 1, entry['files_count']
     end
@@ -225,13 +294,26 @@ module Dn1supCreateProject::Test
     Dir.mktmpdir('cp_test') do |tmp|
       data_dir = File.join(tmp, 'd')
       s = Dn1supCreateProject::Settings.load(data_dir: data_dir)
-      s['structure']['subfolders'] = ['_только_своя']
+      s['structure']['folders']['household']['order'] = '{customer} — {address}'
       Dn1supCreateProject::Settings.save!(s, data_dir: data_dir)
 
       s2 = Dn1supCreateProject::Settings.load(data_dir: data_dir)
-      assert_equal ['_только_своя'], s2['structure']['subfolders'], 'пользовательское значение должно сохраниться'
+      assert_equal '{customer} — {address}', s2.dig('structure', 'folders', 'household', 'order'),
+                   'пользовательское значение должно сохраниться'
       assert_equal 'CF#', s2.dig('articul', 'commercial_prefix'), 'остальные ключи — из DEFAULTS'
     end
+  end
+
+  test 'настройки v2: новые дефолты структуры и артикулов' do
+    s = Dn1supCreateProject::Settings::DEFAULTS
+    assert_equal '%y%m%d_%H%M%S', s.dig('articul', 'timestamp_format')
+    assert_equal '{customer} ~ {address}', s.dig('structure', 'folders', 'household', 'order')
+    assert_equal '{place}', s.dig('structure', 'folders', 'household', 'project')
+    assert_equal '{customer} ~ {company} ~ {address}', s.dig('structure', 'folders', 'commercial', 'order')
+    assert_equal '{place} ~ {product}', s.dig('structure', 'folders', 'commercial', 'project')
+    assert_equal '{place} ~ {product}', s.dig('naming', 'skp_file')
+    assert_equal '{articul}', s.dig('naming', 'pur_file')
+    assert_nil(s.dig('structure', 'subfolders'), 'автоподпапки убраны из дефолтов')
   end
 
   test 'поиск карточки поддерживает расширения .yaml и .yml' do

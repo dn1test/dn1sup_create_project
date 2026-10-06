@@ -7,7 +7,7 @@
         <FolderPlus class="w-4 h-4 text-white" />
       </div>
       <div class="min-w-0">
-        <h1 class="text-sm font-semibold leading-tight truncate">Create Project</h1>
+        <h1 class="text-sm font-semibold leading-tight truncate">Создание проекта</h1>
         <p class="text-[10px] text-slate-400 dark:text-slate-500 leading-tight">
           структура мебельных проектов
         </p>
@@ -18,6 +18,13 @@
     </div>
 
     <div class="flex items-center gap-1">
+      <!-- Артикул текущего заказа -->
+      <span
+        v-if="articul"
+        class="mr-1 px-2 py-1 rounded-md bg-brand-50 dark:bg-brand-950/50 border border-brand-200 dark:border-brand-900
+               text-[11px] font-mono font-semibold text-brand-600 dark:text-brand-300"
+        :title="`Артикул проекта (${orderTypeLabel})`"
+      >{{ articul }}</span>
       <button
         class="p-1.5 rounded-lg text-slate-400 hover:text-brand-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         title="Обновить из dev-папки"
@@ -38,11 +45,29 @@
 </template>
 
 <script setup>
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { FolderPlus, RefreshCw, Sun, Moon } from 'lucide-vue-next'
 import { useTheme } from '../composables/useTheme'
-import { updateFromDev } from '../composables/useSketchupBridge'
+import { state, updateFromDev } from '../composables/useSketchupBridge'
+import { buildArticul, makeTimestamp } from '../utils/naming'
 
 defineProps({ version: { type: String, default: '—' } })
 
 const { isDark, toggleTheme } = useTheme()
+
+const now = ref(new Date())
+let timer = null
+onMounted(() => {
+  timer = setInterval(() => { now.value = new Date() }, 1000)
+})
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
+
+const articul = computed(() => {
+  if (!state.orderType || !state.settings) return ''
+  return buildArticul(state.settings, state.orderType, makeTimestamp(now.value))
+})
+
+const orderTypeLabel = computed(() => (state.orderType === 'commercial' ? 'коммерческий' : 'бытовой'))
 </script>

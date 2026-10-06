@@ -1,6 +1,6 @@
 /**
- * Зеркало Ruby-логики Generator.fill_template — для предпросмотра имён
- * папок/файлов в UI до создания структуры на диске.
+ * Зеркало Ruby-логики Generator — для предпросмотра имён папок/файлов
+ * в UI до создания структуры на диске.
  *
  * Шаблон '{articul} ~ {place}' + vars → сегменты по '~' очищаются от пустых
  * частей после запятой, пустые сегменты выбрасываются, сегменты склеиваются ' ~ '.
@@ -25,21 +25,56 @@ export function compactCommas(text) {
     .join(', ')
 }
 
-export function productValue(type, products) {
-  const list = (products || []).filter(p => String(p || '').trim().length > 0)
-  if (!list.length) return ''
-  if (type === 'commercial' || list.length === 1) return list[0]
-  return list.join(', ')
+export function productValue(_type, product) {
+  return String(product || '').trim()
 }
 
-export function templateVars(type, order, articul, products, timestamp) {
+export function templateVars(type, order, articul, product, timestamp) {
   return {
     articul: articul || '',
     customer: order.customer || '',
     company: order.company || '',
     address: order.address || '',
+    phone: order.phone || '',
+    email: order.email || '',
     place: order.place || '',
-    product: productValue(type, products),
+    product: productValue(type, product),
     timestamp: timestamp || ''
   }
+}
+
+/** Метка времени артикула: yyMMdd_HHMMSS (зеркало Ruby %y%m%d_%H%M%S). */
+export function makeTimestamp(date = new Date()) {
+  const p = n => String(n).padStart(2, '0')
+  return (
+    String(date.getFullYear()).slice(2) +
+    p(date.getMonth() + 1) + p(date.getDate()) +
+    '_' + p(date.getHours()) + p(date.getMinutes()) + p(date.getSeconds())
+  )
+}
+
+/** Артикул = префикс типа + метка времени (зеркало Generator.build_articul). */
+export function buildArticul(settings, type, timestamp) {
+  const s = settings || {}
+  const prefix = type === 'commercial'
+    ? (s.articul?.commercial_prefix ?? 'CF#')
+    : (s.articul?.household_prefix ?? 'HF#')
+  return `${prefix}${timestamp}`
+}
+
+/** Шаблон папки заказа (1-й уровень) для типа. */
+export function orderTemplate(settings, type) {
+  return settings?.structure?.folders?.[type]?.order ||
+    (type === 'commercial' ? '{customer} ~ {company} ~ {address}' : '{customer} ~ {address}')
+}
+
+/** Шаблон папки проекта (2-й уровень) для типа. */
+export function projectTemplate(settings, type) {
+  return settings?.structure?.folders?.[type]?.project ||
+    (type === 'commercial' ? '{place} ~ {product}' : '{place}')
+}
+
+/** Метка времени со сдвигом на offset секунд (проект №i в пачке). */
+export function timestampWithOffset(base, offset) {
+  return makeTimestamp(new Date(base.getTime() + offset * 1000))
 }

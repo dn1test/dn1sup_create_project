@@ -30,7 +30,8 @@ const state = reactive({
   settings: null,   // настройки из Ruby (settings.yaml)
   projects: [],     // реестр проектов
   selected: null,   // открытый проект: { path, card, history }
-  toast: null       // { kind: 'ok' | 'err', text }
+  toast: null,      // { kind: 'ok' | 'err', text }
+  orderType: null   // тип заказа на вкладке «Создать»: 'commercial' | 'household' | null (вопрос при открытии)
 })
 
 let toastTimer = null
@@ -51,6 +52,7 @@ function emitResult(kind, payload) {
     return
   }
   if (kind === 'settings_saved') toast('ok', 'Настройки сохранены')
+  if (kind === 'template_added') toast('ok', `Шаблон .${payload.kind} обновлён`)
   if (kind === 'created' && payload.results) toast('ok', `Создано проектов: ${payload.results.length}`)
   if (kind === 'subfolder_created') toast('ok', `Папка «${payload.name || ''}» создана`)
   if (kind === 'add_files') {
@@ -162,11 +164,21 @@ export function unregisterProject(path) {
 
 export function createProjects(payload) {
   if (isMock) {
-    window.pushResult('created', { results: payload.projects.map((p, i) => ({ path: `${payload.base_path}/Art${i + 1}` })) })
+    const root = payload.base_path || mockState.settings.defaults.projects_root
+    window.pushResult('created', { results: payload.projects.map((p, i) => ({ path: `${root}/Art${i + 1}` })) })
     setTimeout(() => window.pushState(mockState.payload()), 200)
     return
   }
   callRubyJson('create_projects', payload)
+}
+
+/** Копирует выбранный файл-шаблон (.skp/.pur) в data/ расширения. */
+export function addTemplate(kind, path) {
+  if (isMock) {
+    toast('ok', `Шаблон .${kind} обновлён (mock)`)
+    return
+  }
+  callRubyJson('add_template', { kind, path })
 }
 
 export function openProject(path) {

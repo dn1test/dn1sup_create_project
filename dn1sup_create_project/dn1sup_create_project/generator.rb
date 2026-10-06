@@ -1,9 +1,10 @@
 # frozen_string_literal: true
 # =============================================================================
 # dn1sup_create_project/generator.rb — генерация структуры мебельных проектов.
-# Портировано из старого CLI create_project.rb: артикулы, санитизация имён,
-# шаблоны имён папок/файлов, копирование шаблонов .skp/.pur, YAML-карточка
-# проекта с историей (два YAML-документа — формат совместим со старым).
+# Артикулы (префикс + метка времени с шагом 1 секунда между проектами),
+# санитизация имён, шаблоны папок «заказ → проект», имена файлов, копирование
+# шаблонов .skp/.pur и добавленных файлов, YAML-карточка проекта с историей
+# (два YAML-документа — формат совместим со старым).
 #
 # Все имена и списки берутся из настроек (Settings), поэтому структуру можно
 # менять в UI «Настройки» или правкой settings.yaml.
@@ -18,28 +19,18 @@ module Dn1supCreateProject
 
     # -- артикулы ------------------------------------------------------------------
 
-    # Фиксирует временную метку один раз на сессию создания (YYMMDDHHMMSS).
+    # Форматирует метку времени по шаблону из настроек (по умолчанию %y%m%d_%H%M%S).
     def capture_timestamp(settings, now = Time.now)
-      now.strftime(settings.dig('articul', 'timestamp_format') || '%y%m%d%H%M%S')
+      now.strftime(settings.dig('articul', 'timestamp_format') || '%y%m%d_%H%M%S')
     end
 
-    # Артикул проекта: CF#<ts> для коммерческого, HF#<ts>NN для бытового.
-    def build_articul(settings, type, counter, timestamp)
+    # Артикул проекта: префикс + метка времени (CF#260906_143025 / HF#…).
+    # Несколько проектов за один запуск получают метки с шагом в 1 секунду —
+    # это обеспечивает dialog.create_projects, передавая Time + i секунд.
+    def build_articul(settings, type, timestamp)
       key = type == 'commercial' ? 'commercial_prefix' : 'household_prefix'
       prefix = settings.dig('articul', key) || 'XX#'
-      return "#{prefix}#{timestamp}" if type == 'commercial'
-
-      "#{prefix}#{timestamp}#{counter.to_s.rjust(2, '0')}"
-    end
-
-    # Перенумерация бытовых артикулов после добавления/удаления проекта.
-    def renumber_articuls(settings, type, projects, timestamp)
-      return projects if type == 'commercial'
-
-      projects.each_with_index do |project, index|
-        project['articul'] = build_articul(settings, type, index + 1, timestamp)
-      end
-      projects
+      "#{prefix}#{timestamp}"
     end
 
     # -- имена -----------------------------------------------------------------------
@@ -64,59 +55,70 @@ module Dn1supCreateProject
       text.split(',').map(&:strip).reject(&:empty?).join(', ')
     end
 
-    # Продукт для карточки: первый для коммерческих/одиночного, список через запятую.
-    def product_value(type, products)
-      list = Array(products).reject { |p| p.to_s.strip.empty? }
-      return '' if list.empty?
-      return list.first if type == 'commercial' || list.length == 1
-
-      list.join(', ')
+    def product_value(_type, product)
+      product.to_s.strip
     end
 
-    def project_name(type, order:, products:)
+    def project_name(type, order:, product:)
       if type == 'commercial'
-        "#{order['company']}, #{product_value(type, products)} | #{order['place']}, #{order['address']}"
+        "#{order['company']}, #{product_value(type, product)} | #{order['place']}, #{order['address']}"
       else
-        "#{product_value(type, products)}, #{order['place']} | #{order['customer']}, #{order['address']}"
+        "#{product_value(type, product)}, #{order['place']} | #{order['customer']}, #{order['address']}"
       end
     end
 
-    def template_vars(type, order:, articul:, products:, timestamp: nil)
+    def template_vars(type, order:, articul:, product:, timestamp: nil)
       {
         articul: articul,
         customer: order['customer'].to_s,
         company: order['company'].to_s,
         address: order['address'].to_s,
+        phone: order['phone'].to_s,
+        email: order['email'].to_s,
         place: order['place'].to_s,
-        product: product_value(type, products),
+        product: product_value(type, product),
         timestamp: timestamp.to_s
       }
     end
 
     # -- создание структуры ------------------------------------------------------------
 
+    # Корневая папка заказа (1-й уровень): base_path + шаблон order для типа.
+    def order_root(settings, type, base_path, order)
+      tpl = settings.dig('structure', 'folders', type, 'order') ||
+            (type == 'commercial' ? '{customer} ~ {company} ~ {address}' : '{customer} ~ {address}')
+      vars = template_vars(type, order: order, articul: '', product: '')
+      File.join(base_path, sanitize_filename(fill_template(tpl, vars)))
+    end
+
     # Создаёт один проект на диске. Возвращает хеш со string-ключами (для моста):
     # path, skp, pur, yaml, card.
-    def create_project(settings, plug_root:, base_path:, type:, order:, project:, counter:, timestamp:)
-      articul = build_articul(settings, type, counter, timestamp)
-      # место установки живёт в проекте, не в заказе (у бытового заказа несколько мест)
+    # time — метка проекта (Time); пачка проектов идёт с шагом 1 секунда.
+    # Структура: base_path/папка заказа (1-й уровень)/папка проекта (2-й уровень).
+    def create_project(settings, plug_root:, base_path:, type:, order:, project:, time: Time.now)
+      timestamp = capture_timestamp(settings, time)
+      articul = build_articul(settings, type, timestamp)
+      # место установки и продукт живут в проекте, не в заказе
       full_order = order.merge('place' => project['place'].to_s)
-      vars = template_vars(type, order: full_order, articul: articul, products: project['products'], timestamp: timestamp)
+      product = project['product'].to_s
+      vars = template_vars(type, order: full_order, articul: articul, product: product, timestamp: timestamp)
 
-      folder_name = type == 'commercial' ? settings.dig('naming', 'commercial_folder') : settings.dig('naming', 'household_project_folder')
-      project_path = File.join(base_path, sanitize_filename(fill_template(folder_name, vars)))
+      project_tpl = settings.dig('structure', 'folders', type, 'project') ||
+                    (type == 'commercial' ? '{place} ~ {product}' : '{place}')
+      root = order_root(settings, type, base_path, order)
+      project_path = unique_path(File.join(root, sanitize_filename(fill_template(project_tpl, vars))), articul)
       FileUtils.mkdir_p(project_path)
 
-      skp_name, pur_name = build_file_names(settings, type, vars)
+      skp_name, pur_name = build_file_names(settings, vars)
       yaml_name = "#{sanitize_filename(fill_template(settings.dig('naming', 'yaml_file') || '{articul}', vars))}.yaml"
 
       copy_template(settings, plug_root, 'skp', File.join(project_path, skp_name))
       copy_template(settings, plug_root, 'pur', File.join(project_path, pur_name))
 
-      card = build_card(settings, type: type, order: full_order, project: project, articul: articul)
-      File.write(File.join(project_path, yaml_name), YAML.dump_stream(card, initial_history), encoding: 'UTF-8')
+      card = build_card(settings, type: type, order: full_order, project: project, product: product, articul: articul)
+      card['files'] = copy_file_groups(settings, project_path, project['file_groups'])
 
-      create_subfolders(settings, project_path)
+      File.write(File.join(project_path, yaml_name), YAML.dump_stream(card, initial_history), encoding: 'UTF-8')
 
       {
         'path' => project_path.tr('\\', '/'),
@@ -127,27 +129,25 @@ module Dn1supCreateProject
       }
     end
 
-    def build_file_names(settings, type, vars)
-      if type == 'commercial'
-        base = sanitize_filename(fill_template(settings.dig('naming', 'commercial_file') || '', vars))
-        ["#{base}.skp", "#{base}.pur"]
-      else
-        skp_base = sanitize_filename(fill_template(settings.dig('naming', 'household_skp_file') || '', vars))
-        pur_base = sanitize_filename(fill_template(settings.dig('naming', 'pur_file') || '{articul}', vars))
-        ["#{skp_base}.skp", "#{pur_base}.pur"]
-      end
+    # Имена файлов внутри проекта: {place} ~ {product}.skp и {articul}.pur.
+    def build_file_names(settings, vars)
+      skp_base = sanitize_filename(fill_template(settings.dig('naming', 'skp_file') || '{place} ~ {product}', vars))
+      pur_base = sanitize_filename(fill_template(settings.dig('naming', 'pur_file') || '{articul}', vars))
+      ["#{skp_base}.skp", "#{pur_base}.pur"]
     end
 
-    def build_card(settings, type:, order:, project:, articul:)
+    def build_card(_settings, type:, order:, project:, product:, articul:)
       {
-        'project_name' => project_name(type, order: order, products: project['products']),
+        'project_name' => project_name(type, order: order, product: product),
         'project_type' => type == 'commercial' ? 'Коммерческая' : 'Бытовая',
         'articul' => articul,
         'customer_name' => order['customer'].to_s,
         'company_name' => order['company'].to_s,
+        'phone' => order['phone'].to_s,
+        'email' => order['email'].to_s,
         'address' => order['address'].to_s,
         'place' => order['place'].to_s,
-        'product' => product_value(type, project['products']),
+        'product' => product_value(type, product),
         'description' => project['description'].to_s,
         'files' => []
       }
@@ -167,9 +167,29 @@ module Dn1supCreateProject
       }
     end
 
-    # Путь к файлу шаблона (относительный путь — от корня расширения).
+    # -- файловые группы («Добавить файлы» с именем папки) -----------------------------
+
+    # Копирует группы файлов {folder, paths[]} в папку проекта:
+    # каждая группа — своя подпапка внутри проекта. Возвращает записи для карточки.
+    def copy_file_groups(settings, project_path, groups)
+      entries = []
+      Array(groups).each do |group|
+        folder = sanitize_filename(group['folder'].to_s)
+        folder = '_файлы' if folder.strip.empty?
+        entries.concat(ProjectFiles.copy_batch(settings, project_path, folder, Array(group['paths'])))
+      end
+      entries
+    end
+
+    # -- шаблоны -----------------------------------------------------------------------
+
+    # Путь к файлу шаблона: относительный путь — от корня расширения,
+    # абсолютный — как есть.
     def template_path(settings, plug_root, key)
       rel = settings.dig('structure', 'templates', key) || "data/template.#{key}"
+      expanded = File.expand_path(rel)
+      return expanded if rel == expanded || File.absolute_path?(rel)
+
       File.join(plug_root, rel)
     end
 
@@ -185,10 +205,14 @@ module Dn1supCreateProject
       puts "[CreateProject] Шаблон занят, пропущен: #{src}"
     end
 
-    def create_subfolders(settings, project_path)
-      Array(settings.dig('structure', 'subfolders')).each do |sub|
-        FileUtils.mkdir_p(File.join(project_path, sanitize_filename(sub)))
-      end
+    private
+
+    # Если папка с таким именем уже есть (тот же место+продукт) — добавляем артикул.
+    def unique_path(path, articul)
+      return path unless File.exist?(path)
+
+      suffixed = "#{path} (#{sanitize_filename(articul)})"
+      File.exist?(suffixed) ? "#{path} #{Time.now.to_i}" : suffixed
     end
   end
 end

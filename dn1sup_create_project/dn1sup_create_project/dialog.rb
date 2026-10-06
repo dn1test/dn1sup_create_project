@@ -10,6 +10,7 @@
 # =============================================================================
 
 require 'json'
+require 'fileutils'
 
 module Dn1supCreateProject
   module DialogWindow
@@ -99,6 +100,8 @@ module Dn1supCreateProject
         push_state(dlg)
       when 'create_projects'
         create_projects(dlg, param)
+      when 'add_template'
+        add_template(dlg, param)
       when 'get_project'
         send_project(dlg, param)
       when 'save_description'
@@ -174,15 +177,21 @@ module Dn1supCreateProject
       push_result(dlg, 'error', 'message' => e.message)
     end
 
-    # param: {type, base_path, order:{customer,address,company}, projects:[{place, products:[]}]}
+    # param: {type, base_path?, order:{customer, company, phone, email, address},
+    #         projects:[{place, product, file_groups:[{folder, paths[]}]}]}
+    # base_path необязателен — иначе берётся defaults.projects_root из настроек.
     def create_projects(dlg, param)
       payload = parse_json(param)
       type = payload['type'] == 'commercial' ? 'commercial' : 'household'
-      base_path = payload['base_path'].to_s
       order = payload['order'] || {}
       projects = Array(payload['projects'])
 
-      unless base_path.empty? || File.directory?(base_path)
+      base_path = payload['base_path'].to_s
+      base_path = Settings.load.dig('defaults', 'projects_root').to_s if base_path.empty?
+      if base_path.empty?
+        return push_result(dlg, 'error', 'message' => 'Укажите директорию проектов в Настройках')
+      end
+      unless File.directory?(base_path)
         begin
           require 'fileutils'
           FileUtils.mkdir_p(base_path)
@@ -190,36 +199,27 @@ module Dn1supCreateProject
           return push_result(dlg, 'error', 'message' => "Не удалось создать папку #{base_path}: #{e.message}")
         end
       end
-      if base_path.empty?
-        return push_result(dlg, 'error', 'message' => 'Укажите корневую папку')
-      end
       if projects.empty?
         return push_result(dlg, 'error', 'message' => 'Добавьте хотя бы один проект')
+      end
+      if type == 'commercial' && order['company'].to_s.strip.empty?
+        return push_result(dlg, 'error', 'message' => 'Укажите название фирмы для коммерческого проекта')
       end
 
       results = safe do
         settings = Settings.load
-        timestamp = Generator.capture_timestamp(settings)
-        # Бытовой заказ группируется в общую папку «Заказчик ~ Адрес».
-        root = base_path
-        if type == 'household'
-          order_tpl = settings.dig('naming', 'household_order_folder') || '{customer} ~ {address}'
-          order_folder = Generator.sanitize_filename(
-            Generator.fill_template(order_tpl,
-                                    'customer' => order['customer'].to_s, 'address' => order['address'].to_s)
-          )
-          root = File.join(base_path, order_folder)
-        end
+        base = Time.now
 
+        # Шаг в 1 секунду между проектами: последняя цифра артикула отличается.
+        # Папку заказа (1-й уровень) для обоих типов строит Generator.create_project.
         created = projects.each_with_index.map do |project, index|
           Generator.create_project(settings,
                                    plug_root: PLUG_ROOT,
-                                   base_path: root,
+                                   base_path: base_path,
                                    type: type,
-                                   order: type == 'commercial' ? order : order.merge('place' => project['place'].to_s),
+                                   order: order,
                                    project: project,
-                                   counter: index + 1,
-                                   timestamp: timestamp)
+                                   time: base + index)
         end
         created.each { |res| ProjectsStore.register(res['path']) }
         remember_root(base_path)
@@ -228,6 +228,33 @@ module Dn1supCreateProject
 
       push_result(dlg, 'created', 'results' => results)
       push_state(dlg)
+    end
+
+    # param: {kind: 'skp'|'pur', path} — копирует выбранный файл шаблона в data/.
+    def add_template(dlg, param)
+      payload = parse_json(param)
+      kind = payload['kind'].to_s
+      unless %w[skp pur].include?(kind)
+        return push_result(dlg, 'error', 'message' => 'Неизвестный тип шаблона')
+      end
+
+      src = payload['path'].to_s
+      unless File.file?(src)
+        return push_result(dlg, 'error', 'message' => "Файл не найден: #{src}")
+      end
+
+      result = safe do
+        dest_dir = File.join(PLUG_ROOT, 'data')
+        FileUtils.mkdir_p(dest_dir)
+        dest = File.join(dest_dir, "template.#{kind}")
+        FileUtils.cp(src, dest)
+        # Шаблон в data/ — сбрасываем возможный абсолютный путь в настройках.
+        settings = Settings.load
+        settings['structure']['templates'][kind] = "data/template.#{kind}"
+        Settings.save!(settings)
+        dest.tr('\\', '/')
+      end
+      push_result(dlg, 'template_added', 'kind' => kind, 'path' => result.to_s)
     end
 
     def add_files(dlg, param)

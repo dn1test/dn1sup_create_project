@@ -4,22 +4,18 @@
  */
 
 const DEFAULT_SETTINGS = {
-  version: 1,
+  version: 2,
   defaults: { projects_root: 'U:/desktop/su_projects' },
-  articul: { commercial_prefix: 'CF#', household_prefix: 'HF#', timestamp_format: '%y%m%d%H%M%S' },
+  articul: { commercial_prefix: 'CF#', household_prefix: 'HF#', timestamp_format: '%y%m%d_%H%M%S' },
   structure: {
     templates: { skp: 'data/template.skp', pur: 'data/template.pur' },
-    subfolders: [
-      '_замер_задание', '_место_установки', '_правки_заказчика',
-      '_примеры', '_фурнитура_техника', '_проект', '_изображения', '_документы'
-    ]
+    folders: {
+      household: { order: '{customer} ~ {address}', project: '{place}' },
+      commercial: { order: '{customer} ~ {company} ~ {address}', project: '{place} ~ {product}' }
+    }
   },
   naming: {
-    commercial_folder: '{articul} ~ {customer} ~ {company} ~ {address}, {place} ~ {product}',
-    household_order_folder: '{customer} ~ {address}',
-    household_project_folder: '{articul} ~ {place}',
-    commercial_file: '{articul} ~ {company} ~ {place} ~ {product}',
-    household_skp_file: '{customer} ~ {address} ~ {place}',
+    skp_file: '{place} ~ {product}',
     pur_file: '{articul}',
     yaml_file: '{articul}'
   },
@@ -63,13 +59,13 @@ function mockProject(path, articul, type, place, product, description = '') {
 
 const projects = [
   mockProject(
-    `${root}/HF#26100112000001 ~ Кухня`,
-    'HF#26100112000001', 'Бытовая', 'Кухня', 'Кухонный гарнитур',
+    `${root}/Иванов Иван ~ Малиновка 5/Кухня`,
+    'HF#261001_120000', 'Бытовая', 'Кухня', 'Кухонный гарнитур',
     'Кухня в новостройке, потолки 2,7 м. Гарнитур прямой, техника Bosch. Срок — конец ноября.'
   ),
   mockProject(
-    `${root}/CF#261002093000`,
-    'CF#261002093000', 'Коммерческая', 'ТЦ «Малиновка»', 'Стойка ресепшн'
+    `${root}/Иванов Иван ~ ООО «Торг» ~ Минск/ТЦ «Малиновка» ~ Стойка ресепшн`,
+    'CF#261002_093000', 'Коммерческая', 'ТЦ «Малиновка»', 'Стойка ресепшн'
   )
 ]
 
@@ -81,6 +77,8 @@ function detail(path) {
     articul: 'HF#26100112000001',
     customer_name: 'Иванов Иван',
     company_name: '',
+    phone: '+375 29 111-22-33',
+    email: 'ivanov@mail.by',
     address: 'Малиновка 5',
     place: 'Кухня',
     product: 'Кухонный гарнитур',
@@ -111,7 +109,7 @@ export const mockState = {
 
   payload() {
     return {
-      version: '1.0.0',
+      version: '1.1.0',
       settings_path: this.settingsPath,
       settings: this.settings,
       projects: this.projects

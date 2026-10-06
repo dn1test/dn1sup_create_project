@@ -10,27 +10,19 @@ module Dn1supCreateProject::Test
   S = Dn1supCreateProject::Settings::DEFAULTS
 
   test 'артикул коммерческого проекта: префикс + время' do
-    art = Dn1supCreateProject::Generator.build_articul(S, 'commercial', 1, '261005193000')
-    assert_equal 'CF#261005193000', art
+    art = Dn1supCreateProject::Generator.build_articul(S, 'commercial', '261005_193000')
+    assert_equal 'CF#261005_193000', art
   end
 
-  test 'артикул бытового проекта: префикс + время + номер с ведущим нулём' do
+  test 'артикул бытового проекта: префикс + время, без счётчика' do
     g = Dn1supCreateProject::Generator
-    assert_equal 'HF#26100519300001', g.build_articul(S, 'household', 1, '261005193000')
-    assert_equal 'HF#26100519300011', g.build_articul(S, 'household', 11, '261005193000')
+    assert_equal 'HF#261005_193000', g.build_articul(S, 'household', '261005_193000')
   end
 
-  test 'перенумерация бытовых артикулов сохраняет метку времени' do
-    projects = [{ 'articul' => 'x' }, { 'articul' => 'y' }, { 'articul' => 'z' }]
-    Dn1supCreateProject::Generator.renumber_articuls(S, 'household', projects, '261005193000')
-    assert_equal 'HF#26100519300001', projects[0]['articul']
-    assert_equal 'HF#26100519300002', projects[1]['articul']
-    assert_equal 'HF#26100519300003', projects[2]['articul']
-
-    # коммерческие не перенумеровываются
-    one = [{ 'articul' => 'CF#1' }]
-    Dn1supCreateProject::Generator.renumber_articuls(S, 'commercial', one, '261005193000')
-    assert_equal 'CF#1', one[0]['articul']
+  test 'метка времени по формату из настроек (ГГММДД_ЧЧММСС)' do
+    g = Dn1supCreateProject::Generator
+    time = Time.new(2026, 10, 5, 19, 30, 0)
+    assert_equal '261005_193000', g.capture_timestamp(S, time)
   end
 
   test 'санитизация имён: <> удаляются, запрещённые заменяются на _' do
@@ -55,20 +47,30 @@ module Dn1supCreateProject::Test
     assert_equal 'Иван ~ Кухня', g.fill_template(tpl, vars)
   end
 
-  test 'продукт: одиночный строкой, список через запятую (бытовой)' do
+  test 'продукт: строка как есть, пустое — пустая строка' do
     g = Dn1supCreateProject::Generator
-    assert_equal 'Стенка', g.product_value('commercial', ['Стенка'])
-    assert_equal 'Шкаф, Полки', g.product_value('household', %w[Шкаф Полки])
-    assert_equal 'Шкаф', g.product_value('household', ['Шкаф'])
-    assert_equal '', g.product_value('household', [])
+    assert_equal 'Стенка', g.product_value('commercial', 'Стенка')
+    assert_equal 'Шкаф', g.product_value('household', ' Шкаф ')
+    assert_equal '', g.product_value('household', '')
+    assert_equal '', g.product_value('household', nil)
   end
 
-  test 'имя проекта в карточке по формату старого генератора' do
+  test 'имя проекта в карточке' do
     g = Dn1supCreateProject::Generator
     order = { 'customer' => 'Иван', 'company' => 'ООО Торг', 'address' => 'Минск', 'place' => 'ТЦ' }
-    assert_equal 'ООО Торг, Остров | ТЦ, Минск', g.project_name('commercial', order: order, products: ['Остров'])
+    assert_equal 'ООО Торг, Остров | ТЦ, Минск', g.project_name('commercial', order: order, product: 'Остров')
     household = { 'customer' => 'Иван', 'address' => 'Малиновка', 'place' => 'Кухня' }
-    assert_equal 'Шкаф, Кухня | Иван, Малиновка', g.project_name('household', order: household, products: ['Шкаф'])
+    assert_equal 'Шкаф, Кухня | Иван, Малиновка', g.project_name('household', order: household, product: 'Шкаф')
+  end
+
+  test 'карточка содержит телефон и почту заказчика' do
+    g = Dn1supCreateProject::Generator
+    card = g.build_card(S, type: 'commercial',
+                        order: { 'customer' => 'Иван', 'company' => 'ООО Торг', 'phone' => '+375 29 111-22-33',
+                                 'email' => 'ivan@mail.by', 'address' => 'Минск', 'place' => 'ТЦ' },
+                        project: { 'place' => 'ТЦ' }, product: 'Остров', articul: 'CF#1')
+    assert_equal '+375 29 111-22-33', card['phone']
+    assert_equal 'ivan@mail.by', card['email']
   end
 
   test 'история проекта содержит стартовую запись как в старом формате' do

@@ -18,45 +18,45 @@ module Dn1supCreateProject
   module Settings
     extend self
 
-    VERSION = 1
+    VERSION = 2
 
-    # -- значения по умолчанию (взяты из списков старого create_project.rb) ----
+    # -- значения по умолчанию (v2 — структура «заказ → проект» из ТЗ) ------------
 
     DEFAULTS = {
       'version' => VERSION,
       'defaults' => {
-        'projects_root' => '' # корневая папка проектов; запоминается после первого выбора
+        'projects_root' => '' # корневая папка всех проектов; выбирается в «Настройках»
       },
       'articul' => {
         'commercial_prefix' => 'CF#',
         'household_prefix' => 'HF#',
-        'timestamp_format' => '%y%m%d%H%M%S'
+        # несколько проектов за раз создаются с шагом в 1 секунду —
+        # последняя цифра (секунды) артикула отличается
+        'timestamp_format' => '%y%m%d_%H%M%S'
       },
       'structure' => {
-        # относительные пути к шаблонам (от корня расширения)
+        # пути к шаблонам: относительные — от корня расширения, абсолютные — как есть
         'templates' => {
           'skp' => 'data/template.skp',
           'pur' => 'data/template.pur'
         },
-        # подпапки, создаваемые в каждом проекте
-        'subfolders' => %w[
-          _замер_задание
-          _место_установки
-          _правки_заказчика
-          _примеры
-          _фурнитура_техника
-          _проект
-          _изображения
-          _документы
-        ]
+        # шаблоны папок: order — общий folder 1-го уровня заказа,
+        # project — папка каждого проекта (2-й уровень) внутри заказа
+        'folders' => {
+          'household' => {
+            'order' => '{customer} ~ {address}',
+            'project' => '{place}'
+          },
+          'commercial' => {
+            'order' => '{customer} ~ {company} ~ {address}',
+            'project' => '{place} ~ {product}'
+          }
+        }
       },
-      # шаблоны имён; плейсхолдеры: {articul} {customer} {company} {address} {place} {product}
+      # имена файлов внутри папки проекта
+      # плейсхолдеры: {articul} {customer} {company} {address} {phone} {email} {place} {product} {timestamp}
       'naming' => {
-        'commercial_folder' => '{articul} ~ {customer} ~ {company} ~ {address}, {place} ~ {product}',
-        'household_order_folder' => '{customer} ~ {address}',
-        'household_project_folder' => '{articul} ~ {place}',
-        'commercial_file' => '{articul} ~ {company} ~ {place} ~ {product}',
-        'household_skp_file' => '{customer} ~ {address} ~ {place}',
+        'skp_file' => '{place} ~ {product}',
         'pur_file' => '{articul}',
         'yaml_file' => '{articul}'
       },
