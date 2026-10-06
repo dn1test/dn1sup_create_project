@@ -15,24 +15,71 @@
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-[1fr,330px] gap-3 items-start">
-      <!-- Левая колонка: проекты -->
+      <!-- Левая колонка: проекты-вкладки -->
       <section class="cp-card p-3 space-y-2">
-        <div class="flex items-center justify-between">
-          <div class="cp-label">Проекты <span class="text-slate-300">({{ form.projects.length }})</span></div>
-          <button class="cp-btn-ghost !py-1 text-xs" @click="addProject">
+        <div class="cp-label">Проекты <span class="text-slate-300">({{ form.projects.length }})</span></div>
+
+        <!-- Полоса вкладок: каждая вкладка — отдельный проект -->
+        <div v-if="form.projects.length" class="flex items-center gap-1 overflow-x-auto pb-0.5">
+          <button
+            v-for="(project, index) in form.projects"
+            :key="project._id"
+            class="shrink-0 flex items-center gap-1.5 pl-2.5 pr-1 py-1.5 rounded-lg border text-xs font-medium
+                   transition-colors max-w-[220px]"
+            :class="project._id === activeProjectId
+              ? 'bg-white dark:bg-slate-700 border-brand-300 dark:border-brand-800 text-brand-600 dark:text-brand-300 shadow-sm'
+              : 'bg-slate-100/70 dark:bg-slate-900 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'"
+            :title="projectTitle(project, index)"
+            @click="activeProjectId = project._id"
+          >
+            <span
+              v-if="!projectComplete(project)"
+              class="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"
+              title="Проект заполнен не полностью"
+            ></span>
+            <span class="truncate">{{ projectTitle(project, index) }}</span>
+            <span
+              class="shrink-0 rounded p-0.5 text-slate-400 hover:bg-red-500 hover:text-white transition-colors"
+              title="Закрыть вкладку"
+              @click.stop="removeProject(index)"
+            >
+              <X class="w-3 h-3" />
+            </span>
+          </button>
+
+          <button
+            class="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-slate-400
+                   hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-slate-800 transition-colors"
+            title="Добавить проект"
+            @click="addProject"
+          >
+            <Plus class="w-4 h-4" />
+          </button>
+        </div>
+
+        <!-- Вкладку по умолчанию не создаём: стартуем с пустого состояния -->
+        <div
+          v-else
+          class="rounded-lg border border-dashed border-slate-300 dark:border-slate-700
+                 p-6 flex flex-col items-center gap-2.5"
+        >
+          <p class="text-xs text-slate-400 text-center leading-relaxed">
+            Проектов пока нет. Каждая вкладка — отдельный проект<br />со своими файлами и артикулом.
+          </p>
+          <button class="cp-btn-primary !py-1.5 text-xs" @click="addProject">
             <Plus class="w-3.5 h-3.5" /> Добавить проект
           </button>
         </div>
 
+        <!-- Панель активного проекта -->
         <ProjectRow
-          v-for="(project, index) in form.projects"
-          :key="project._id"
-          :project="project"
-          :index="index"
+          v-if="activeProject"
+          :key="activeProject._id"
+          :project="activeProject"
+          :index="activeIndex"
           :type="form.type"
           :settings="settings"
-          :can-remove="form.projects.length > 1"
-          @remove="removeProject(index)"
+          @remove="removeProject(activeIndex)"
         />
       </section>
 
@@ -105,8 +152,8 @@
 </template>
 
 <script setup>
-import { computed, defineEmits, reactive, watch } from 'vue'
-import { FolderPlus, House, Plus, Repeat, Settings2, Store } from 'lucide-vue-next'
+import { computed, defineEmits, reactive, ref, watch } from 'vue'
+import { FolderPlus, House, Plus, Repeat, Settings2, Store, X } from 'lucide-vue-next'
 import Field from './Field.vue'
 import ProjectRow from './ProjectRow.vue'
 import TypeSelect from './TypeSelect.vue'
@@ -132,28 +179,53 @@ const form = reactive({
   projects: []
 })
 
-// при выборе/смене типа — начинаем новый список проектов (данные заказчика сохраняем)
+// активная вкладка; вкладку по умолчанию не создаём — список стартует пустым
+const activeProjectId = ref(null)
+const activeIndex = computed(() => form.projects.findIndex(p => p._id === activeProjectId.value))
+const activeProject = computed(() => activeIndex.value >= 0 ? form.projects[activeIndex.value] : null)
+
+// при выборе/смене типа — чистый лист (данные заказчика сохраняем)
 watch(
   () => state.orderType,
   (type) => {
     if (!type || type === form.type) return
     form.type = type
     form.projects = []
-    addProject()
+    activeProjectId.value = null
   },
   { immediate: true }
 )
 
 // артикул фиксируется в момент добавления проекта: метка «сейчас»,
-// а если предыдущая строка заняла ту же секунду — на секунду позже
+// а если предыдущая вкладка заняла ту же секунду — на секунду позже
 function addProject() {
   const nowSec = Math.floor(Date.now() / 1000)
   lastStampSec = nowSec > lastStampSec ? nowSec : lastStampSec + 1
-  form.projects.push({ _id: ++projectSeq, place: '', product: '', groups: [], stampSec: lastStampSec })
+  const project = { _id: ++projectSeq, place: '', product: '', groups: [], stampSec: lastStampSec }
+  form.projects.push(project)
+  activeProjectId.value = project._id
 }
 
 function removeProject(index) {
+  const wasActive = form.projects[index]._id === activeProjectId.value
   form.projects.splice(index, 1)
+  if (!form.projects.length) {
+    activeProjectId.value = null
+  } else if (wasActive) {
+    activeProjectId.value = form.projects[Math.min(index, form.projects.length - 1)]._id
+  }
+}
+
+// заголовок вкладки: место и продукт, пока не заполнены — «Проект N»
+function projectTitle(project, index) {
+  const parts = [project.place.trim(), project.product.trim()].filter(Boolean)
+  return parts.length ? parts.join(' ~ ') : `Проект ${index + 1}`
+}
+
+// вкладка заполнена достаточно для создания (та же проверка, что в canCreate)
+function projectComplete(project) {
+  if (!project.place.trim() || !project.product.trim()) return false
+  return project.groups.every(g => g.folder.trim().length > 0)
 }
 
 // после успешного создания начинаем новую пачку (данные заказчика остаются)
@@ -162,7 +234,7 @@ watch(
   (at) => {
     if (!at) return
     form.projects = []
-    addProject()
+    activeProjectId.value = null
   }
 )
 
