@@ -14,13 +14,13 @@
       </button>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-[1fr,330px] gap-3 items-start">
+    <div class="grid grid-cols-1 sm:grid-cols-[1fr,330px] gap-3 items-start">
       <!-- Левая колонка: проекты-вкладки -->
       <section class="cp-card p-3 space-y-2">
         <div class="cp-label">Проекты <span class="text-slate-300">({{ form.projects.length }})</span></div>
 
-        <!-- Полоса вкладок: каждая вкладка — отдельный проект -->
-        <div v-if="form.projects.length" class="flex items-center gap-1 overflow-x-auto pb-0.5">
+        <!-- Полоса вкладок: каждая вкладка — отдельный проект; не убираются — переносятся на новую строку -->
+        <div v-if="form.projects.length" class="flex flex-wrap items-center gap-1">
           <button
             v-for="(project, index) in form.projects"
             :key="project._id"
@@ -84,7 +84,7 @@
       </section>
 
       <!-- Правая колонка: заказчик + предпросмотр -->
-      <div class="space-y-3 md:sticky md:top-0">
+      <div class="space-y-3 sm:sticky sm:top-0">
         <section class="cp-card p-3 space-y-2">
           <div class="cp-label">Заказчик</div>
           <Field
@@ -121,6 +121,13 @@
                   {{ preview.folder }}
                 </div>
                 <div class="text-[10px] text-slate-400 font-mono break-all">{{ preview.files }}</div>
+                <div
+                  v-for="group in preview.groups"
+                  :key="group.folder"
+                  class="pl-2 text-[10px] text-slate-400 font-mono break-all"
+                >
+                  {{ group.folder }} — {{ group.count }} {{ pluralFiles(group.count) }}
+                </div>
               </div>
             </div>
             <p v-if="!previews.length" class="text-xs text-slate-400">
@@ -250,10 +257,24 @@ const previews = computed(() => {
     const pur = fillTemplate(s.naming.pur_file, vars)
     return {
       folder: `${orderFolder}/${projectFolder}`,
-      files: `${skp}.skp · ${pur}.pur${project.groups.length ? ` · +${project.groups.reduce((n, g) => n + g.files.length, 0)} файлов` : ''}`
+      files: `${skp}.skp · ${pur}.pur`,
+      // добавленные папки: показываем только непустые — как уходит в create()
+      groups: project.groups
+        .filter(g => g.files.length)
+        .map(g => ({ folder: g.folder.trim() || '_файлы', count: g.files.length }))
     }
   })
 })
+
+// 1 файл / 2 файла / 5 файлов
+function pluralFiles(n) {
+  const mod100 = Math.abs(n) % 100
+  const mod10 = mod100 % 10
+  if (mod100 > 10 && mod100 < 20) return 'файлов'
+  if (mod10 === 1) return 'файл'
+  if (mod10 >= 2 && mod10 <= 4) return 'файла'
+  return 'файлов'
+}
 
 const canCreate = computed(() => {
   if (!rootFolder.value.trim()) return false

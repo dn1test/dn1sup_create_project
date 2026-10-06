@@ -65,11 +65,13 @@ module Dn1supCreateProject
       end
       # Закрытый HtmlDialog повторным show не поднимается — пересоздаём.
       dialogs.delete(dlg) if dlg
+      # Ширина жёстко фиксирована (min_width == max_width), регулируется только высота.
       dlg = track_dialog(UI::HtmlDialog.new(
                            dialog_title: window_title,
                            preferences_key: 'dn1sup_create_project_dialog',
-                           width: 1020, height: 700,
-                           min_width: 780, min_height: 520,
+                           width: 780, height: 520,
+                           min_width: 780, max_width: 780,
+                           min_height: 520,
                            resizable: true,
                            use_file_input: true,
                            style: UI::HtmlDialog::STYLE_DIALOG
