@@ -18,21 +18,14 @@ module Dn1supCreateProject
   module Settings
     extend self
 
-    VERSION = 2
+    VERSION = 3
 
-    # -- значения по умолчанию (v2 — структура «заказ → проект» из ТЗ) ------------
+    # -- значения по умолчанию (v3 — структура «заказ → проект», без артикулов) ----
 
     DEFAULTS = {
       'version' => VERSION,
       'defaults' => {
         'projects_root' => '' # корневая папка всех проектов; выбирается в «Настройках»
-      },
-      'articul' => {
-        'commercial_prefix' => 'CF#',
-        'household_prefix' => 'HF#',
-        # несколько проектов за раз создаются с шагом в 1 секунду —
-        # последняя цифра (секунды) артикула отличается
-        'timestamp_format' => '%y%m%d_%H%M%S'
       },
       'structure' => {
         # пути к шаблонам: относительные — от корня расширения, абсолютные — как есть
@@ -54,11 +47,11 @@ module Dn1supCreateProject
         }
       },
       # имена файлов внутри папки проекта
-      # плейсхолдеры: {articul} {customer} {company} {address} {phone} {email} {place} {product} {timestamp}
+      # плейсхолдеры: {customer} {company} {address} {phone} {email} {place} {product}
       'naming' => {
         'skp_file' => '{place} ~ {product}',
-        'pur_file' => '{articul}',
-        'yaml_file' => '{articul}'
+        'pur_file' => '{place}',
+        'yaml_file' => '{place}'
       },
       'lists' => {
         'commercial_products' => ['Торговый остров', 'Стойка ресепшн', 'Торговая мебель', 'Павильон'],
@@ -133,7 +126,7 @@ module Dn1supCreateProject
       FileUtils.mkdir_p(d)
       file = File.join(d, 'settings.yaml')
       user = File.exist?(file) ? (YAML.safe_load(File.read(file, encoding: 'UTF-8')) || {}) : {}
-      deep_merge(deep_dup(DEFAULTS), user)
+      migrate(deep_merge(deep_dup(DEFAULTS), user))
     rescue StandardError => e
       puts "[CreateProject] Настройки не прочитаны (#{e.message}) — используются значения по умолчанию"
       deep_dup(DEFAULTS)
@@ -163,6 +156,20 @@ module Dn1supCreateProject
     end
 
     # -- утилиты ---------------------------------------------------------------------
+
+    # Перевод сохранённых настроек на текущую версию. С v3 артикулов нет:
+    # устаревшая секция 'articul' удаляется, '{articul}' в именах файлов
+    # заменяется на '{place}', иначе имена файлов станут пустыми.
+    def migrate(settings)
+      settings.delete('articul')
+      naming = settings['naming']
+      if naming.is_a?(Hash)
+        %w[pur_file yaml_file].each do |key|
+          naming[key] = DEFAULTS['naming'][key] if naming[key].to_s.include?('{articul}')
+        end
+      end
+      settings
+    end
 
     # Рекурсивное слияние: значения user переопределяют base,
     # отсутствующие в user ключи остаются из base. Хеши сливает, массивы заменяет.

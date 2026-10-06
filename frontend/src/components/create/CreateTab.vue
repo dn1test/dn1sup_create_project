@@ -64,7 +64,7 @@
                  p-6 flex flex-col items-center gap-2.5"
         >
           <p class="text-xs text-slate-400 text-center leading-relaxed">
-            Проектов пока нет. Каждая вкладка — отдельный проект<br />со своими файлами и артикулом.
+            Проектов пока нет. Каждая вкладка — отдельный проект<br />со своими файлами.
           </p>
           <button class="cp-btn-primary !py-1.5 text-xs" @click="addProject">
             <Plus class="w-3.5 h-3.5" /> Добавить проект
@@ -159,8 +159,7 @@ import ProjectRow from './ProjectRow.vue'
 import TypeSelect from './TypeSelect.vue'
 import { state, createProjects, toast } from '../../composables/useSketchupBridge'
 import {
-  buildArticul, fillTemplate, makeTimestamp, orderTemplate,
-  projectTemplate, templateVars
+  fillTemplate, orderTemplate, projectTemplate, templateVars
 } from '../../utils/naming'
 
 const emit = defineEmits(['go-to-settings'])
@@ -172,7 +171,6 @@ const typeMeta = computed(() => state.orderType === 'commercial'
   : { title: 'Бытовой проект', icon: House })
 
 let projectSeq = 0
-let lastStampSec = 0
 const form = reactive({
   type: null,
   order: { company: '', customer: '', phone: '', email: '', address: '' },
@@ -196,12 +194,8 @@ watch(
   { immediate: true }
 )
 
-// артикул фиксируется в момент добавления проекта: метка «сейчас»,
-// а если предыдущая вкладка заняла ту же секунду — на секунду позже
 function addProject() {
-  const nowSec = Math.floor(Date.now() / 1000)
-  lastStampSec = nowSec > lastStampSec ? nowSec : lastStampSec + 1
-  const project = { _id: ++projectSeq, place: '', product: '', groups: [], stampSec: lastStampSec }
+  const project = { _id: ++projectSeq, place: '', product: '', groups: [] }
   form.projects.push(project)
   activeProjectId.value = project._id
 }
@@ -249,8 +243,7 @@ const previews = computed(() => {
   if (!s || !form.type) return []
   return form.projects.map((project) => {
     const order = { ...form.order, place: project.place }
-    const timestamp = makeTimestamp(new Date(project.stampSec * 1000))
-    const vars = templateVars(form.type, order, buildArticul(s, form.type, timestamp), project.product, timestamp)
+    const vars = templateVars(form.type, order, project.product)
     const orderFolder = fillTemplate(orderTemplate(s, form.type), vars)
     const projectFolder = fillTemplate(projectTemplate(s, form.type), vars)
     const skp = fillTemplate(s.naming.skp_file, vars)
@@ -285,7 +278,6 @@ function create() {
     projects: form.projects.map(p => ({
       place: p.place.trim(),
       product: p.product.trim(),
-      time_sec: p.stampSec, // артикул зафиксирован в момент добавления проекта
       file_groups: p.groups
         .filter(g => g.files.length)
         .map(g => ({ folder: g.folder.trim(), paths: g.files.map(f => f.path) }))

@@ -19,7 +19,7 @@ Sketchup.extensions.each { |e| _registered = true if e.name == "DN1SUP Create Pr
 unless _registered
   ext = SketchupExtension.new("DN1SUP Create Project", File.join('dn1sup_create_project', 'main'))
   ext.description = "Создание и оформление мебельных проектов: структура папок, карточка YAML, картинки и документы"
-  ext.version     = '1.1.0'
+  ext.version     = '1.2.0'
   ext.creator     = "DN1Sup"
   ext.copyright   = '2026, DN1Sup'
   Sketchup.register_extension(ext, true) # true = загружать при старте SketchUp

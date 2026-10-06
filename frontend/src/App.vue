@@ -27,6 +27,7 @@
       <KeepAlive>
         <CreateTab v-if="activeTab === 'create'" @go-to-settings="activeTab = 'settings'" />
         <SettingsTab v-else-if="activeTab === 'settings'" />
+        <HelpTab v-else-if="activeTab === 'help'" />
       </KeepAlive>
     </main>
 
@@ -63,16 +64,18 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { FolderPlus, Settings2, CheckCircle, AlertCircle } from 'lucide-vue-next'
+import { FolderPlus, Settings2, HelpCircle, CheckCircle, AlertCircle } from 'lucide-vue-next'
 import Header from './components/Header.vue'
 import CreateTab from './components/create/CreateTab.vue'
 import SettingsTab from './components/settings/SettingsTab.vue'
+import HelpTab from './components/help/HelpTab.vue'
 import { state, loadState, openSettingsFile } from './composables/useSketchupBridge'
 
 const activeTab = ref('create')
 const tabs = computed(() => [
   { id: 'create', label: 'Создать', icon: FolderPlus },
-  { id: 'settings', label: 'Настройки', icon: Settings2 }
+  { id: 'settings', label: 'Настройки', icon: Settings2 },
+  { id: 'help', label: 'Справка', icon: HelpCircle }
 ])
 
 onMounted(() => {

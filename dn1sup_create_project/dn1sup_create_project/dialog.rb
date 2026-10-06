@@ -246,9 +246,7 @@ module Dn1supCreateProject
     end
 
     # param: {type, base_path?, order:{customer, company, phone, email, address},
-    #         projects:[{place, product, time_sec?, file_groups:[{folder, paths[]}]}]}
-    # time_sec — epoch-секунды, зафиксированные интерфейсом при добавлении проекта
-    # (артикул); без метки проект получает base + index секунд.
+    #         projects:[{place, product, file_groups:[{folder, paths[]}]}]}
     # base_path необязателен — иначе берётся defaults.projects_root из настроек.
     def create_projects(dlg, param)
       payload = parse_json(param)
@@ -279,18 +277,14 @@ module Dn1supCreateProject
       results = safe do
         settings = Settings.load
 
-        # Метка артикула каждого проекта зафиксирована в интерфейсе в момент
-        # добавления проекта (project['time_sec']). Папку заказа (1-й уровень)
-        # для обоих типов строит Generator.create_project.
-        times = Generator.project_times(projects, base: Time.now)
-        created = projects.each_with_index.map do |project, index|
+        # Папку заказа (1-й уровень) для обоих типов строит Generator.create_project.
+        created = projects.map do |project|
           Generator.create_project(settings,
                                    plug_root: PLUG_ROOT,
                                    base_path: base_path,
                                    type: type,
                                    order: order,
-                                   project: project,
-                                   time: times[index])
+                                   project: project)
         end
         created.each { |res| ProjectsStore.register(res['path']) }
         remember_root(base_path)

@@ -83,7 +83,6 @@ module Dn1supCreateProject
           'registered_at' => entry.is_a?(String) ? nil : entry['registered_at'],
           'unknown' => card.nil?,
           'name' => card ? card['project_name'] : File.basename(path),
-          'articul' => card ? card['articul'] : '',
           'type' => card ? card['project_type'] : '',
           'place' => card ? card['place'] : '',
           'product' => card ? card['product'] : '',
@@ -108,7 +107,8 @@ module Dn1supCreateProject
     end
 
     # Ищет YAML-карточку в корне проекта: первый *.{yaml,yml}, чей первый документ
-    # содержит ключ 'articul' (карточка) либо это наш пустой шаблон.
+    # содержит ключ 'project_name' (карточка; старые карточки с 'articul' тоже
+    # имеют project_name) либо это наш пустой шаблон.
     def card_path(project_path)
       return nil if project_path.nil? || !File.directory?(project_path)
 
@@ -118,7 +118,7 @@ module Dn1supCreateProject
         next if docs.empty?
 
         first = docs.first
-        return file if first.is_a?(Hash) && (first.key?('articul') || first.key?('project_name'))
+        return file if first.is_a?(Hash) && first.key?('project_name')
       end
       nil
     end
@@ -148,7 +148,6 @@ module Dn1supCreateProject
       card = {
         'project_name' => name,
         'project_type' => '',
-        'articul' => '',
         'customer_name' => '',
         'company_name' => '',
         'address' => '',
@@ -198,7 +197,7 @@ module Dn1supCreateProject
     end
 
     def default_card_file(project_path, card)
-      base = card['articul'].to_s
+      base = card['project_name'].to_s
       base = File.basename(File.expand_path(project_path)) if base.strip.empty?
       File.join(project_path, "#{Generator.sanitize_filename(base)}.yaml")
     end

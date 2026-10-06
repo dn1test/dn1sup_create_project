@@ -8,12 +8,6 @@
         >
           {{ projectTitle }}
         </div>
-        <span
-          v-if="articulPreview"
-          class="px-1.5 py-px rounded bg-brand-50 dark:bg-brand-950/50 border border-brand-200 dark:border-brand-900
-                 text-[10px] font-mono font-semibold text-brand-600 dark:text-brand-300 truncate"
-          :title="`Артикул проекта №${index + 1}`"
-        >{{ articulPreview }}</span>
       </div>
       <button
         v-if="canRemove"
@@ -138,7 +132,6 @@
 import { computed, ref } from 'vue'
 import { Box, File, FileText, FolderOpen, Image, Paperclip, Trash2, X } from 'lucide-vue-next'
 import { pickFiles as pickFilesDialog, pickFolderFiles } from '../../composables/useSketchupBridge'
-import { buildArticul, makeTimestamp } from '../../utils/naming'
 
 const props = defineProps({
   project: { type: Object, required: true },
@@ -163,12 +156,6 @@ const productPlaceholder = computed(() =>
 const projectTitle = computed(() => {
   const parts = [props.project.place.trim(), props.project.product.trim()].filter(Boolean)
   return parts.length ? parts.join(' ~ ') : `Проект ${props.index + 1}`
-})
-
-// артикул блока: фиксированная метка из момента добавления проекта (project.stampSec)
-const articulPreview = computed(() => {
-  if (!props.settings || !props.project.stampSec) return ''
-  return buildArticul(props.settings, props.type, makeTimestamp(new Date(props.project.stampSec * 1000)))
 })
 
 const filesTotal = computed(() =>

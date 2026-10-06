@@ -4,9 +4,8 @@
  */
 
 const DEFAULT_SETTINGS = {
-  version: 2,
+  version: 3,
   defaults: { projects_root: 'U:/desktop/su_projects' },
-  articul: { commercial_prefix: 'CF#', household_prefix: 'HF#', timestamp_format: '%y%m%d_%H%M%S' },
   structure: {
     templates: { skp: 'data/template.skp', pur: 'data/template.pur' },
     folders: {
@@ -16,8 +15,8 @@ const DEFAULT_SETTINGS = {
   },
   naming: {
     skp_file: '{place} ~ {product}',
-    pur_file: '{articul}',
-    yaml_file: '{articul}'
+    pur_file: '{place}',
+    yaml_file: '{place}'
   },
   lists: {
     commercial_products: ['Торговый остров', 'Стойка ресепшн', 'Торговая мебель', 'Павильон'],
@@ -42,13 +41,12 @@ const DEFAULT_SETTINGS = {
 
 const root = 'U:/desktop/su_projects'
 
-function mockProject(path, articul, type, place, product, description = '') {
+function mockProject(path, type, place, product, description = '') {
   return {
     path,
     registered_at: '2026-10-01 10:00',
     unknown: false,
     name: `${product}, ${place} | Иванов Иван, Малиновка 5`,
-    articul,
     type,
     place,
     product,
@@ -60,12 +58,12 @@ function mockProject(path, articul, type, place, product, description = '') {
 const projects = [
   mockProject(
     `${root}/Иванов Иван ~ Малиновка 5/Кухня`,
-    'HF#261001_120000', 'Бытовая', 'Кухня', 'Кухонный гарнитур',
+    'Бытовая', 'Кухня', 'Кухонный гарнитур',
     'Кухня в новостройке, потолки 2,7 м. Гарнитур прямой, техника Bosch. Срок — конец ноября.'
   ),
   mockProject(
     `${root}/Иванов Иван ~ ООО «Торг» ~ Минск/ТЦ «Малиновка» ~ Стойка ресепшн`,
-    'CF#261002_093000', 'Коммерческая', 'ТЦ «Малиновка»', 'Стойка ресепшн'
+    'Коммерческая', 'ТЦ «Малиновка»', 'Стойка ресепшн'
   )
 ]
 
@@ -74,7 +72,6 @@ function detail(path) {
     path,
     project_name: 'Кухонный гарнитур, Кухня | Иванов Иван, Малиновка 5',
     project_type: 'Бытовая',
-    articul: 'HF#26100112000001',
     customer_name: 'Иванов Иван',
     company_name: '',
     phone: '+375 29 111-22-33',

@@ -208,9 +208,9 @@ export function loadState() {
 
 export function registerExisting() {
   if (isMock) {
-    const p = window.prompt('Путь к существующему проекту (mock):', mockState.root + '/HF#26010100000001 ~ Кухня')
+    const p = window.prompt('Путь к существующему проекту (mock):', mockState.root + '/Иванов Иван ~ Малиновка 5/Кухня')
     if (p) {
-      mockState.projects.push(mockState.mockProject(p, 'HF#26010100000001', 'Бытовая', 'Кухня', 'Кухонный гарнитур'))
+      mockState.projects.push(mockState.mockProject(p, 'Бытовая', 'Кухня', 'Кухонный гарнитур'))
       window.pushState(mockState.payload())
     }
     return

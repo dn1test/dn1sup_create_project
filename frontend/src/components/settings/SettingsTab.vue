@@ -26,7 +26,7 @@
       <!-- Блок 1: бытовой проект -->
       <section class="cp-card p-3 space-y-2">
         <div class="cp-label">Папки бытового проекта</div>
-        <p class="text-[10px] text-slate-400">Плейсхолдеры: <code class="font-mono">{customer} {company} {address} {phone} {email} {place} {product} {articul}</code></p>
+        <p class="text-[10px] text-slate-400">Плейсхолдеры: <code class="font-mono">{customer} {company} {address} {phone} {email} {place} {product}</code></p>
         <label class="block">
           <span class="block mb-0.5 text-[11px] text-slate-400">Папка заказа, 1 уровень</span>
           <input v-model="draft.structure.folders.household.order" type="text" class="cp-input font-mono text-xs" />
@@ -92,7 +92,7 @@
           <label class="block">
             <span class="block mb-0.5 text-[11px] text-slate-400">Имя .pur в папке проекта</span>
             <input v-model="draft.naming.pur_file" type="text" class="cp-input font-mono text-xs" />
-            <span class="block mt-0.5 text-[10px] text-slate-400">например: <code class="font-mono">{articul}.pur</code></span>
+            <span class="block mt-0.5 text-[10px] text-slate-400">например: <code class="font-mono">{place}.pur</code></span>
           </label>
         </div>
 
@@ -100,30 +100,6 @@
           <span class="block mb-0.5 text-[11px] text-slate-400">Имя YAML-карточки</span>
           <input v-model="draft.naming.yaml_file" type="text" class="cp-input font-mono text-xs" />
         </label>
-      </section>
-
-      <!-- Артикулы -->
-      <section class="cp-card p-3 space-y-2">
-        <div class="cp-label">Артикулы</div>
-        <div class="grid grid-cols-3 gap-2">
-          <label class="block">
-            <span class="block mb-0.5 text-[11px] text-slate-400">Коммерческий префикс</span>
-            <input v-model="draft.articul.commercial_prefix" type="text" class="cp-input font-mono" />
-          </label>
-          <label class="block">
-            <span class="block mb-0.5 text-[11px] text-slate-400">Бытовой префикс</span>
-            <input v-model="draft.articul.household_prefix" type="text" class="cp-input font-mono" />
-          </label>
-          <label class="block">
-            <span class="block mb-0.5 text-[11px] text-slate-400">Формат времени</span>
-            <input v-model="draft.articul.timestamp_format" type="text" class="cp-input font-mono" />
-          </label>
-        </div>
-        <p class="text-[10px] text-slate-400">
-          Артикул = префикс + время ({{ draft.articul.timestamp_format }}).
-          Время фиксируется в момент добавления проекта; если два проекта добавлены
-          в одну секунду, у второго время на секунду больше.
-        </p>
       </section>
 
       <!-- Действия -->

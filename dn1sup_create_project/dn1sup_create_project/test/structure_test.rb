@@ -13,7 +13,6 @@ module Dn1supCreateProject::Test
   G = Dn1supCreateProject::Generator
   P = Dn1supCreateProject::ProjectsStore
   F = Dn1supCreateProject::ProjectFiles
-  T = Time.new(2026, 10, 5, 19, 30, 0) # → метка 261005_193000
 
   def self.in_tmp
     Dir.mktmpdir('cp_test') do |tmp|
@@ -34,8 +33,7 @@ module Dn1supCreateProject::Test
                              base_path: tmp,
                              type: 'commercial',
                              order: order,
-                             project: project,
-                             time: T)
+                             project: project)
 
       path = res['path']
       assert(Dir.exist?(path), "нет папки проекта: #{path}")
@@ -49,11 +47,11 @@ module Dn1supCreateProject::Test
       assert(File.exist?(File.join(path, res['skp'])), 'нет .skp')
       assert_equal 'ТЦ Малиновка ~ Торговый остров.skp', res['skp']
       assert(File.exist?(File.join(path, res['pur'])), 'нет .pur')
-      assert_equal 'CF#261005_193000.pur', res['pur']
-      assert_equal 'CF#261005_193000.yaml', res['yaml']
+      assert_equal 'ТЦ Малиновка.pur', res['pur']
+      assert_equal 'ТЦ Малиновка.yaml', res['yaml']
 
       card, history = P.read_card(path)
-      assert_equal 'CF#261005_193000', card['articul']
+      assert_nil(card['articul'], 'артикулов в карточке больше нет')
       assert_equal 'Коммерческая', card['project_type']
       assert_equal 'ООО Торг, Торговый остров | ТЦ Малиновка, Минск', card['project_name']
       assert_equal 'ООО Торг', card['company_name']
@@ -76,15 +74,14 @@ module Dn1supCreateProject::Test
                              base_path: tmp,
                              type: 'household',
                              order: order,
-                             project: { 'place' => 'Кухня', 'product' => 'Шкаф' },
-                             time: T)
+                             project: { 'place' => 'Кухня', 'product' => 'Шкаф' })
 
       path = res['path']
       assert(Dir.exist?(path))
       assert_match(%r{/Иван ~ Малиновка 5/Кухня\z}, path)
-      # .skp теперь «Место ~ Продукт», .pur — по артикулу
+      # .skp — «Место ~ Продукт», .pur — по месту
       assert_equal 'Кухня ~ Шкаф.skp', res['skp']
-      assert_equal 'HF#261005_193000.pur', res['pur']
+      assert_equal 'Кухня.pur', res['pur']
 
       card, = P.read_card(path)
       assert_equal 'Бытовая', card['project_type']
@@ -112,8 +109,7 @@ module Dn1supCreateProject::Test
                                  { 'folder' => 'Фото мебели', 'paths' => [src_img] },
                                  { 'folder' => 'Замеры', 'paths' => [src_doc, File.join(tmp, 'нет_такого.pdf')] }
                                ]
-                             },
-                             time: T)
+                             })
 
       path = res['path']
       assert(File.file?(File.join(path, 'Фото мебели', 'референс.jpg')), 'картинка не в своей папке')
@@ -128,7 +124,7 @@ module Dn1supCreateProject::Test
     end
   end
 
-  test 'повторное создание проекта в той же папке получает суффикс с артикулом' do
+  test 'повторное создание проекта в той же папке получает счётчик' do
     in_tmp do |tmp, _|
       settings = Dn1supCreateProject::Settings.load
       order = { 'customer' => 'Иван', 'address' => 'Малиновка' }
@@ -136,14 +132,19 @@ module Dn1supCreateProject::Test
 
       first = G.create_project(settings, plug_root: Dn1supCreateProject::PLUG_ROOT,
                                base_path: tmp, type: 'household', order: order,
-                               project: project, time: T)
+                               project: project)
       second = G.create_project(settings, plug_root: Dn1supCreateProject::PLUG_ROOT,
                                 base_path: tmp, type: 'household', order: order,
-                                project: project, time: T)
+                                project: project)
+      third = G.create_project(settings, plug_root: Dn1supCreateProject::PLUG_ROOT,
+                               base_path: tmp, type: 'household', order: order,
+                               project: project)
 
       assert(first['path'] != second['path'], 'проекты не должны попадать в одну папку')
-      assert_match(/Кухня \(HF#261005_193000\)\z/, second['path'])
+      assert_match(/Кухня \(2\)\z/, second['path'])
+      assert_match(/Кухня \(3\)\z/, third['path'])
       assert(Dir.exist?(second['path']))
+      assert(Dir.exist?(third['path']))
     end
   end
 
@@ -183,10 +184,10 @@ module Dn1supCreateProject::Test
 
   test 'реестр: список проекта с карточкой отдаёт данные карточки' do
     in_tmp do |tmp, data_dir|
-      project_path = File.join(tmp, 'CF#261005_193000 ~ Иван')
+      project_path = File.join(tmp, 'ТЦ ~ Остров')
       FileUtils.mkdir_p(project_path)
       card = { 'project_name' => 'ООО Торг, Остров | ТЦ, Минск', 'project_type' => 'Коммерческая',
-               'articul' => 'CF#261005_193000', 'place' => 'ТЦ', 'product' => 'Остров',
+               'place' => 'ТЦ', 'product' => 'Остров',
                'customer_name' => 'Иван', 'company_name' => 'ООО Торг', 'address' => 'Минск',
                'description' => 'тест', 'files' => [{ 'path' => '_документы/a.pdf', 'category' => 'document' }] }
       P.write_card(project_path, card, { 'project_history' => [] })
@@ -196,7 +197,7 @@ module Dn1supCreateProject::Test
       assert_equal 1, list.size
       entry = list.first
       assert_equal false, entry['unknown'], 'проект с карточкой не unknown'
-      assert_equal 'CF#261005_193000', entry['articul']
+      assert_nil(entry['articul'], 'артикулов в списке больше нет')
       assert_equal 'тест', entry['description']
       assert_equal 1, entry['files_count']
     end
@@ -300,20 +301,40 @@ module Dn1supCreateProject::Test
       s2 = Dn1supCreateProject::Settings.load(data_dir: data_dir)
       assert_equal '{customer} — {address}', s2.dig('structure', 'folders', 'household', 'order'),
                    'пользовательское значение должно сохраниться'
-      assert_equal 'CF#', s2.dig('articul', 'commercial_prefix'), 'остальные ключи — из DEFAULTS'
+      assert_equal '{place}', s2.dig('naming', 'pur_file'), 'остальные ключи — из DEFAULTS'
     end
   end
 
-  test 'настройки v2: новые дефолты структуры и артикулов' do
+  test 'настройки v3: без артикулов, имена .pur/.yaml по месту' do
     s = Dn1supCreateProject::Settings::DEFAULTS
-    assert_equal '%y%m%d_%H%M%S', s.dig('articul', 'timestamp_format')
+    assert_nil(s['articul'], 'секции артикулов в дефолтах больше нет')
     assert_equal '{customer} ~ {address}', s.dig('structure', 'folders', 'household', 'order')
     assert_equal '{place}', s.dig('structure', 'folders', 'household', 'project')
     assert_equal '{customer} ~ {company} ~ {address}', s.dig('structure', 'folders', 'commercial', 'order')
     assert_equal '{place} ~ {product}', s.dig('structure', 'folders', 'commercial', 'project')
     assert_equal '{place} ~ {product}', s.dig('naming', 'skp_file')
-    assert_equal '{articul}', s.dig('naming', 'pur_file')
+    assert_equal '{place}', s.dig('naming', 'pur_file')
+    assert_equal '{place}', s.dig('naming', 'yaml_file')
     assert_nil(s.dig('structure', 'subfolders'), 'автоподпапки убраны из дефолтов')
+  end
+
+  test 'миграция настроек v2: articul удаляется, {articul} в именах заменяется' do
+    Dir.mktmpdir('cp_test') do |tmp|
+      data_dir = File.join(tmp, 'd')
+      FileUtils.mkdir_p(data_dir)
+      old = {
+        'version' => 2,
+        'articul' => { 'commercial_prefix' => 'CF#', 'timestamp_format' => '%y%m%d_%H%M%S' },
+        'naming' => { 'skp_file' => '{place}', 'pur_file' => '{articul}', 'yaml_file' => '{articul}' }
+      }
+      File.write(File.join(data_dir, 'settings.yaml'), YAML.dump(old), encoding: 'UTF-8')
+
+      s = Dn1supCreateProject::Settings.load(data_dir: data_dir)
+      assert_nil(s['articul'], 'устаревшая секция артикулов удаляется при чтении')
+      assert_equal '{place}', s.dig('naming', 'pur_file'), 'старый шаблон {articul} заменяется'
+      assert_equal '{place}', s.dig('naming', 'yaml_file')
+      assert_equal '{place}', s.dig('naming', 'skp_file'), 'пользовательские шаблоны без {articul} не трогаем'
+    end
   end
 
   test 'поиск карточки поддерживает расширения .yaml и .yml' do
@@ -321,11 +342,25 @@ module Dn1supCreateProject::Test
       proj = File.join(tmp, 'yml_proj')
       FileUtils.mkdir_p(proj)
       yml_card = File.join(proj, 'card.yml')
-      File.write(yml_card, YAML.dump('articul' => 'HF#123', 'project_name' => 'Тест YML'), encoding: 'UTF-8')
+      File.write(yml_card, YAML.dump('project_name' => 'Тест YML', 'place' => 'Кухня'), encoding: 'UTF-8')
 
       assert_equal yml_card, P.card_path(proj)
       card, = P.read_card(proj)
-      assert_equal 'HF#123', card['articul']
+      assert_equal 'Тест YML', card['project_name']
+    end
+  end
+
+  test 'поиск карточки находит старый формат с ключом articul' do
+    in_tmp do |tmp, _|
+      proj = File.join(tmp, 'old_proj')
+      FileUtils.mkdir_p(proj)
+      old_card = File.join(proj, 'HF#261005_193000.yaml')
+      File.write(old_card, YAML.dump('articul' => 'HF#261005_193000', 'project_name' => 'Старый проект'),
+                 encoding: 'UTF-8')
+
+      assert_equal old_card, P.card_path(proj), 'старые карточки (с articul) должны находиться'
+      card, = P.read_card(proj)
+      assert_equal 'Старый проект', card['project_name']
     end
   end
 
