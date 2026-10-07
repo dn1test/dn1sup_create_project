@@ -32,7 +32,8 @@ const state = reactive({
   selected: null,   // открытый проект: { path, card, history }
   toast: null,      // { kind: 'ok' | 'err', text }
   orderType: null,  // тип заказа на вкладке «Создать»: 'commercial' | 'household' | null (вопрос при открытии)
-  lastCreated: 0    // Date.now() последнего успешного создания проектов (сигнал вкладке «Создать» очистить форму)
+  lastCreated: 0,   // Date.now() последнего успешного создания проектов (сигнал вкладке «Создать» очистить форму)
+  showHelp: false   // одноразовый флаг Ruby: открыть справку (пункт меню «Справка»)
 })
 
 let toastTimer = null
@@ -99,6 +100,7 @@ if (typeof window !== 'undefined') {
     state.settingsPath = payload.settings_path || ''
     state.settings = payload.settings || null
     state.projects = payload.projects || []
+    state.showHelp = !!payload.show_help
   }
   window.pushResult = function (kind, payload) {
     emitResult(kind, payload || {})

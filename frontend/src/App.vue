@@ -1,6 +1,6 @@
 <template>
   <div class="h-full flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors">
-    <Header :version="state.version" />
+    <Header :version="state.version" @open-help="helpOpen = true" />
 
     <nav class="px-3 pt-1.5 shrink-0">
       <div class="flex gap-1 bg-slate-200/60 dark:bg-slate-900 rounded-lg p-0.5">
@@ -27,7 +27,6 @@
       <KeepAlive>
         <CreateTab v-if="activeTab === 'create'" @go-to-settings="activeTab = 'settings'" />
         <SettingsTab v-else-if="activeTab === 'settings'" />
-        <HelpTab v-else-if="activeTab === 'help'" />
       </KeepAlive>
     </main>
 
@@ -44,6 +43,9 @@
         открыть
       </button>
     </footer>
+
+    <!-- Справка: кнопка «?» в шапке / пункт меню «Справка» -->
+    <HelpModal :open="helpOpen" @close="helpOpen = false" />
 
     <!-- Тост -->
     <transition name="toast">
@@ -63,20 +65,27 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { FolderPlus, Settings2, HelpCircle, CheckCircle, AlertCircle } from 'lucide-vue-next'
+import { ref, computed, watch, onMounted } from 'vue'
+import { FolderPlus, Settings2, CheckCircle, AlertCircle } from 'lucide-vue-next'
 import Header from './components/Header.vue'
 import CreateTab from './components/create/CreateTab.vue'
 import SettingsTab from './components/settings/SettingsTab.vue'
-import HelpTab from './components/help/HelpTab.vue'
+import HelpModal from './components/help/HelpModal.vue'
 import { state, loadState, openSettingsFile } from './composables/useSketchupBridge'
 
 const activeTab = ref('create')
 const tabs = computed(() => [
   { id: 'create', label: 'Создать', icon: FolderPlus },
-  { id: 'settings', label: 'Настройки', icon: Settings2 },
-  { id: 'help', label: 'Справка', icon: HelpCircle }
+  { id: 'settings', label: 'Настройки', icon: Settings2 }
 ])
+
+// -- справка ----------------------------------------------------------------
+// Открывается кнопкой «?» в шапке; автопоказ — по одноразовому флагу
+// state.showHelp (пункт меню «Справка» в Ruby передаёт его в push_state).
+const helpOpen = ref(false)
+watch(() => state.showHelp, (v) => {
+  if (v) { helpOpen.value = true; state.showHelp = false }
+})
 
 onMounted(() => {
   loadState()

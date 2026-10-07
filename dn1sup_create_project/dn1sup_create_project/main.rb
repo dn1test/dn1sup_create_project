@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 # =============================================================================
-# dn1sup_create_project/main.rb — основная логика расширения «DN1SUP Create Project».
+# dn1sup_create_project/main.rb — основная логика расширения «DN1Sup Create Project».
 #
 # Код рассчитан на горячую перезагрузку (ext_reload MCP-сервера sketchup-dev):
 #   • диалоги регистрируются через track_* и снимаются в unload! — старая
@@ -31,20 +31,20 @@ module Dn1sup
   def self.common_menu
     @common_menu ||= begin
       legacy = (defined?($dn1sup_common_menu) && $dn1sup_common_menu) || (defined?($dn1sup_menu) && $dn1sup_menu)
-      legacy || UI.menu('Extensions').add_submenu('DN1SUP')
+      legacy || UI.menu('Extensions').add_submenu('DN1Sup')
     end
   end
 end
 
 module Dn1supCreateProject
-  VERSION   = '1.2.1'.freeze
+  VERSION   = '1.3.0'.freeze
   PLUG_ROOT = File.dirname(__FILE__).freeze
 
-  COMMON_MENU = 'DN1SUP'.freeze          # общее меню всех расширений DN1Sup
+  COMMON_MENU = 'DN1Sup'.freeze          # общее меню всех расширений DN1Sup
   MENU_NAME   = 'Create Project'.freeze  # подменю расширения внутри COMMON_MENU
 
-  TOOLBAR_NAME = 'DN1SUP Create Project'.freeze
-  CMD_TOOLTIP  = 'DN1SUP Create Project — создание и оформление проектов'.freeze
+  TOOLBAR_NAME = 'DN1Sup Create Project'.freeze
+  CMD_TOOLTIP  = 'DN1Sup Create Project — создание и оформление проектов'.freeze
 
   class << self
     # -- отслеживаемые ресурсы (снимаются в unload!) ---------------------------
@@ -82,7 +82,7 @@ module Dn1supCreateProject
     end
 
     # Меню и панель инструментов создаются один раз на сессию SketchUp
-    # (см. комментарий выше). Своё подменю внутри общего меню DN1SUP.
+    # (см. комментарий выше). Своё подменю внутри общего меню DN1Sup.
     def setup_ui
       return if @menu_created || (defined?(Dn1sup) && Dn1sup.instance_variable_get(:@cp_menu))
 
@@ -104,6 +104,7 @@ module Dn1supCreateProject
       menu.add_item('🔄 Обновить из dev-папки') { Dn1supCreateProject.safe { Dn1supCreateProject.update_from_dev } }
       menu.add_item('⚡ Перезагрузить (Hot Reload)') { Dn1supCreateProject.safe { Dn1supCreateProject.hot_reload } }
       menu.add_separator
+      menu.add_item('Справка') { Dn1supCreateProject.safe { Dn1supCreateProject.show_dialog(true) } }
       menu.add_item('О расширении') { Dn1supCreateProject.about }
 
       setup_toolbar

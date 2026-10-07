@@ -1,4 +1,4 @@
-# DN1SUP Create Project
+# DN1Sup Create Project
 
 Расширение SketchUp для создания и оформления мебельных проектов: структура папок,
 YAML-карточка проекта с историей, картинки и документы. HTML-интерфейс на Vue 3.
@@ -69,7 +69,7 @@ dn1sup_create_project/   dev-корень (для установки в Plugins 
 Цикл: правка frontend → `npm run build` → копирование в Plugins
 (`ruby update_from_dev.rb`, меню «Обновить из dev-папки» или MCP `ext_install`+`ext_reload`).
 
-Меню: **Extensions → DN1SUP → Create Project**. Тулбар: DN1SUP Create Project.
+Меню: **Extensions → DN1Sup → Create Project**. Тулбар: DN1Sup Create Project.
 
 ## Тесты
 
@@ -86,3 +86,8 @@ ruby dn1sup_create_project/dn1sup_create_project/test/run_all.rb   # локал�
 полные локальные пути, файлы копируются в проект. Превью изображений строится в
 интерфейсе (FileReader); для остальных файлов показывается иконка по расширению.
 Если мультивыбор не сработал (старые версии SketchUp) — файлы можно добавлять по одному.
+
+## Автор и лицензия
+
+- **Автор**: DN1Sup <dn1codegen@gmail.com>
+- **Лицензия**: MIT — см. файл [LICENSE](LICENSE)

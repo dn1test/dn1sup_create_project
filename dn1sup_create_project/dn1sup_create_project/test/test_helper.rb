@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 # =============================================================================
 # dn1sup_create_project/test/test_helper.rb — мини-харнесс тестов
-# «DN1SUP Create Project».
+# «DN1Sup Create Project».
 #
 # Работает в двух средах:
 #   • внутри SketchUp — запуск через ext_test MCP-сервера sketchup-dev;

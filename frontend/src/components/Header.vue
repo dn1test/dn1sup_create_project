@@ -27,6 +27,13 @@
       </button>
       <button
         class="p-1.5 rounded-lg text-slate-400 hover:text-brand-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        title="Справка: как пользоваться"
+        @click="$emit('open-help')"
+      >
+        <HelpCircle class="w-4 h-4" />
+      </button>
+      <button
+        class="p-1.5 rounded-lg text-slate-400 hover:text-brand-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         :title="isDark ? 'Светлая тема' : 'Тёмная тема'"
         @click="toggleTheme"
       >
@@ -38,11 +45,12 @@
 </template>
 
 <script setup>
-import { FolderPlus, RefreshCw, Sun, Moon } from 'lucide-vue-next'
+import { FolderPlus, RefreshCw, HelpCircle, Sun, Moon } from 'lucide-vue-next'
 import { useTheme } from '../composables/useTheme'
 import { updateFromDev } from '../composables/useSketchupBridge'
 
 defineProps({ version: { type: String, default: '—' } })
+defineEmits(['open-help'])
 
 const { isDark, toggleTheme } = useTheme()
 </script>

@@ -9,7 +9,7 @@ require_relative 'test_helper'
 
 module Dn1supCreateProject::Test
   test 'версия расширения задана' do
-    assert_equal '1.2.0', Dn1supCreateProject::VERSION
+    assert_equal '1.3.0', Dn1supCreateProject::VERSION
   end
 
   test 'модуль отвечает на команды' do

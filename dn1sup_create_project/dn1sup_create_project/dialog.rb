@@ -56,11 +56,16 @@ module Dn1supCreateProject
       "Create Project v#{VERSION} — проекты"
     end
 
-    def show_dialog
+    # help: true — окно откроется с показанной справкой (пункт меню «Справка»);
+    # флаг одноразовый, передаётся в UI с первым push_state.
+    def show_dialog(help = false)
+      @pending_help = true if help
       dlg = @dialog
       if dlg && dlg.visible?
         dlg.bring_to_front
         DialogWindow.raise_from_taskbar
+        # Флаг справки доставляем сразу, не дожидаясь следующего пуша.
+        push_state(dlg) if @pending_help
         return dlg
       end
       # Закрытый HtmlDialog повторным show не поднимается — пересоздаём.
@@ -352,13 +357,18 @@ module Dn1supCreateProject
 
     def push_state(dlg)
       payload = safe do
-        {
+        h = {
           'version' => VERSION,
           'settings' => Settings.load,
           'projects' => ProjectsStore.list,
           'settings_path' => Settings.path
         }
+        # Одноразовый флаг справки (пункт меню «Справка»): UI откроет окно
+        # справки при получении состояния и сбросит флаг у себя.
+        h['show_help'] = true if @pending_help
+        h
       end
+      @pending_help = nil
       dlg.execute_script("window.pushState(#{JSON.generate(payload)});")
     rescue StandardError => e
       puts "[CreateProject] Не удалось передать состояние в диалог: #{e.message}"
