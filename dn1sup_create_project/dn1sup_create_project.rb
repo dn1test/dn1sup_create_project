@@ -22,7 +22,7 @@ Sketchup.extensions.each { |e| _registered = true if e.name == "DN1Sup Create Pr
 unless _registered
   ext = SketchupExtension.new("DN1Sup Create Project", File.join('dn1sup_create_project', 'main'))
   ext.description = "Создание и оформление мебельных проектов: структура папок, карточка YAML, картинки и документы"
-  ext.version     = '0.4.0'
+  ext.version     = '0.4.1'
   ext.creator     = "DN1Sup"
   ext.copyright   = '2026 DN1Sup <dn1codegen@gmail.com> (MIT)'
   ext.id          = 'dn1sup_create_project' if ext.respond_to?(:id=)
