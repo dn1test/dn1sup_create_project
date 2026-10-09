@@ -37,7 +37,7 @@ module Dn1sup
 end
 
 module Dn1supCreateProject
-  VERSION   = '1.3.0'.freeze
+  VERSION   = '0.3.0'.freeze
   PLUG_ROOT = File.dirname(__FILE__).freeze
 
   COMMON_MENU = 'DN1Sup'.freeze          # общее меню всех расширений DN1Sup
