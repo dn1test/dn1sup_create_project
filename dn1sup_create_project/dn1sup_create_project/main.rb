@@ -27,6 +27,17 @@ rescue LoadError
   nil
 end
 
+# Общий модуль автообновления dn1sup_updater.rb кладётся в пакет при упаковке
+# (tools/pack.rb); в dev-копии его нет. LoadError не наследуется от
+# StandardError — ловим явно (SU2026+ пробрасывает).
+if defined?(Sketchup) && Sketchup.respond_to?(:require)
+  begin
+    Sketchup.require 'dn1sup_create_project/dn1sup_updater'
+  rescue LoadError, StandardError
+    nil
+  end
+end
+
 module Dn1sup
   def self.common_menu
     @common_menu ||= begin
@@ -37,7 +48,7 @@ module Dn1sup
 end
 
 module Dn1supCreateProject
-  VERSION   = '0.3.0'.freeze
+  VERSION   = '0.4.0'.freeze
   PLUG_ROOT = File.dirname(__FILE__).freeze
 
   COMMON_MENU = 'DN1Sup'.freeze          # общее меню всех расширений DN1Sup
@@ -45,6 +56,12 @@ module Dn1supCreateProject
 
   TOOLBAR_NAME = 'DN1Sup Create Project'.freeze
   CMD_TOOLTIP  = 'DN1Sup Create Project — создание и оформление проектов'.freeze
+
+  ID       = 'dn1sup_create_project'.freeze
+  REPO     = 'dn1test/dn1sup_create_project'.freeze
+  ASSET    = "#{ID}.rbz".freeze
+  PAGE_URL = "https://github.com/#{REPO}/releases".freeze
+  MANIFEST = { id: ID, repo: REPO, version: VERSION, asset: ASSET }.freeze
 
   class << self
     # -- отслеживаемые ресурсы (снимаются в unload!) ---------------------------
@@ -101,13 +118,39 @@ module Dn1supCreateProject
 
       menu.add_item('Открыть папку настроек') { Dn1supCreateProject.safe { WinShell.reveal(Settings.path) } }
       menu.add_separator
+      menu.add_item('Проверить обновления сейчас') do
+        Dn1supCreateProject.safe do
+          if defined?(Dn1sup::Updater)
+            Dn1sup::Updater.check!(Dn1supCreateProject::MANIFEST.merge(force: true, async: true))
+          else
+            UI.openURL(Dn1supCreateProject::PAGE_URL)
+          end
+        end
+      end
+      menu.add_item('Страница релизов на GitHub') { UI.openURL(Dn1supCreateProject::PAGE_URL) }
+      menu.add_separator
       menu.add_item('🔄 Обновить из dev-папки') { Dn1supCreateProject.safe { Dn1supCreateProject.update_from_dev } }
       menu.add_item('⚡ Перезагрузить (Hot Reload)') { Dn1supCreateProject.safe { Dn1supCreateProject.hot_reload } }
       menu.add_separator
       menu.add_item('Справка') { Dn1supCreateProject.safe { Dn1supCreateProject.show_dialog(true) } }
       menu.add_item('О расширении') { Dn1supCreateProject.about }
 
+      schedule_update_check
       setup_toolbar
+    end
+
+    # Фоновая проверка обновлений один раз за сессию (не раньше 15 секунд,
+    # чтобы не мешать загрузке SketchUp).
+    def schedule_update_check
+      return if $dn1sup_cp_update_check_scheduled
+      return unless defined?(Dn1sup::Updater) && defined?(UI) && UI.respond_to?(:start_timer)
+
+      $dn1sup_cp_update_check_scheduled = true
+      UI.start_timer(15, false) do
+        Dn1sup::Updater.check!(Dn1supCreateProject::MANIFEST.merge(async: true))
+      end
+    rescue StandardError
+      nil
     end
 
     # Панель инструментов с кнопкой запуска диалога. Тулбар нельзя удалить
