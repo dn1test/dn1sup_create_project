@@ -91,3 +91,10 @@ ruby dn1sup_create_project/dn1sup_create_project/test/run_all.rb   # локал�
 
 - **Автор**: DN1Sup <dn1codegen@gmail.com>
 - **Лицензия**: MIT — см. файл [LICENSE](LICENSE)
+
+---
+
+## Публикация на GitHub
+
+Как оформить репозиторий, чтобы DN1Sup Extension Store находил расширение,
+показывал его в каталоге и предлагал обновления, — см. [PUBLISHING.md](PUBLISHING.md).
