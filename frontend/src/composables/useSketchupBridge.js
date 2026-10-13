@@ -314,11 +314,6 @@ export function openSettingsFile() {
   callRuby('open_settings_file')
 }
 
-export function updateFromDev() {
-  if (isMock) { toast('ok', 'Обновление из dev-папки (mock)'); return }
-  callRuby('update_from_dev')
-}
-
 // Проверка обновления: сначала локальная папка разработки, потом GitHub.
 export function checkUpdate() {
   if (isMock) { toast('ok', 'Проверка обновлений (mock): актуальная версия'); return }

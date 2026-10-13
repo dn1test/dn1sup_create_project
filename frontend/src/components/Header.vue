@@ -27,13 +27,6 @@
       </button>
       <button
         class="p-1.5 rounded-lg text-slate-400 hover:text-brand-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-        title="Обновить из рабочей копии"
-        @click="updateFromDev"
-      >
-        <RefreshCw class="w-4 h-4" />
-      </button>
-      <button
-        class="p-1.5 rounded-lg text-slate-400 hover:text-brand-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         title="Справка: как пользоваться"
         @click="$emit('open-help')"
       >
@@ -52,9 +45,9 @@
 </template>
 
 <script setup>
-import { FolderPlus, RefreshCw, RotateCw, HelpCircle, Sun, Moon } from 'lucide-vue-next'
+import { FolderPlus, RotateCw, HelpCircle, Sun, Moon } from 'lucide-vue-next'
 import { useTheme } from '../composables/useTheme'
-import { updateFromDev, checkUpdate } from '../composables/useSketchupBridge'
+import { checkUpdate } from '../composables/useSketchupBridge'
 
 defineProps({
   version: { type: String, default: '—' }

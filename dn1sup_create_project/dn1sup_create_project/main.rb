@@ -132,9 +132,6 @@ module Dn1supCreateProject
       end
       menu.add_item('Страница релизов на GitHub') { UI.openURL(Dn1supCreateProject::PAGE_URL) }
       menu.add_separator
-      menu.add_item('🔄 Обновить из рабочей копии') { Dn1supCreateProject.safe { Dn1supCreateProject.update_from_dev } }
-      menu.add_item('⚡ Перезагрузить (Hot Reload)') { Dn1supCreateProject.safe { Dn1supCreateProject.hot_reload } }
-      menu.add_separator
       menu.add_item('Справка') { Dn1supCreateProject.safe { Dn1supCreateProject.show_dialog(true) } }
       menu.add_item('О расширении') { Dn1supCreateProject.about }
 
@@ -182,18 +179,6 @@ module Dn1supCreateProject
       toolbar.restore
     rescue StandardError => e
       puts "[CreateProject] Не удалось создать панель инструментов: #{e.message}"
-    end
-
-    def update_from_dev(dev_dir = nil)
-      return unless defined?(DevUpdater)
-      was_open = @dialog && @dialog.visible?
-      DevUpdater.update_and_reload!(dev_dir: dev_dir, reopen_dialog: was_open, notify: true)
-    end
-
-    def hot_reload
-      return unless defined?(DevUpdater)
-      DevUpdater.reload!
-      UI.messagebox("⚡ Create Project v#{VERSION} перезагружен!") if defined?(UI)
     end
 
     def about
