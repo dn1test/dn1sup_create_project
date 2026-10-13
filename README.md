@@ -67,7 +67,7 @@ dn1sup_create_project/   dev-корень (для установки в Plugins 
 ```
 
 Цикл: правка frontend → `npm run build` → копирование в Plugins
-(`ruby update_from_dev.rb`, меню «Обновить из dev-папки» или MCP `ext_install`+`ext_reload`).
+(`ruby update_from_dev.rb`, меню «Обновить из рабочей копии» или MCP `ext_install`+`ext_reload`).
 
 Меню: **Extensions → DN1Sup → Create Project**. Тулбар: DN1Sup Create Project.
 

@@ -359,8 +359,6 @@ module Dn1supCreateProject
       payload = safe do
         h = {
           'version' => VERSION,
-          # загружен именно dev-вариант (Plugins/<id>_dev) — для бейджа DEV в шапке
-          'dev_build' => DEV_BUILD,
           'settings' => Settings.load,
           'projects' => ProjectsStore.list,
           'settings_path' => Settings.path

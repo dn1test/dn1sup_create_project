@@ -1,6 +1,6 @@
 <template>
   <div class="h-full flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors">
-    <Header :version="state.version" :dev-build="state.devBuild" @open-help="helpOpen = true" />
+    <Header :version="state.version" @open-help="helpOpen = true" />
 
     <nav class="px-3 pt-1.5 shrink-0">
       <div class="flex gap-1 bg-slate-200/60 dark:bg-slate-900 rounded-lg p-0.5">

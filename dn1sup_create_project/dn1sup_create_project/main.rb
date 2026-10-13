@@ -48,10 +48,8 @@ module Dn1sup
 end
 
 module Dn1supCreateProject
-  VERSION   = '0.4.2'.freeze
+  VERSION   = '0.5.0'.freeze
   PLUG_ROOT = File.dirname(__FILE__).freeze
-  # DEV-вариант живёт в Plugins/<id>_dev/ — признак по имени корневой папки
-  DEV_BUILD = File.basename(PLUG_ROOT).end_with?('_dev').freeze
 
   COMMON_MENU = 'DN1Sup'.freeze          # общее меню всех расширений DN1Sup
   MENU_NAME   = 'Create Project'.freeze  # подменю расширения внутри COMMON_MENU
@@ -131,7 +129,7 @@ module Dn1supCreateProject
       end
       menu.add_item('Страница релизов на GitHub') { UI.openURL(Dn1supCreateProject::PAGE_URL) }
       menu.add_separator
-      menu.add_item('🔄 Обновить из dev-папки') { Dn1supCreateProject.safe { Dn1supCreateProject.update_from_dev } }
+      menu.add_item('🔄 Обновить из рабочей копии') { Dn1supCreateProject.safe { Dn1supCreateProject.update_from_dev } }
       menu.add_item('⚡ Перезагрузить (Hot Reload)') { Dn1supCreateProject.safe { Dn1supCreateProject.hot_reload } }
       menu.add_separator
       menu.add_item('Справка') { Dn1supCreateProject.safe { Dn1supCreateProject.show_dialog(true) } }

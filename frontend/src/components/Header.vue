@@ -15,18 +15,12 @@
       <span
         class="ml-1 px-1.5 py-0.5 rounded bg-slate-200/70 dark:bg-slate-800 text-[10px] font-mono text-slate-500 dark:text-slate-400"
       >v{{ version }}</span>
-      <span
-        v-if="devBuild"
-        class="ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide whitespace-nowrap
-               bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300"
-        title="Работает dev-вариант (рабочая копия sketchup-dev-mcp), не релиз"
-      >DEV</span>
     </div>
 
     <div class="flex items-center gap-1">
       <button
         class="p-1.5 rounded-lg text-slate-400 hover:text-brand-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-        title="Обновить из dev-папки"
+        title="Обновить из рабочей копии"
         @click="updateFromDev"
       >
         <RefreshCw class="w-4 h-4" />
@@ -56,8 +50,7 @@ import { useTheme } from '../composables/useTheme'
 import { updateFromDev } from '../composables/useSketchupBridge'
 
 defineProps({
-  version: { type: String, default: '—' },
-  devBuild: { type: Boolean, default: false }
+  version: { type: String, default: '—' }
 })
 defineEmits(['open-help'])
 
