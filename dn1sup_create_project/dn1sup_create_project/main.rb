@@ -48,8 +48,10 @@ module Dn1sup
 end
 
 module Dn1supCreateProject
-  VERSION   = '0.4.1'.freeze
+  VERSION   = '0.4.2'.freeze
   PLUG_ROOT = File.dirname(__FILE__).freeze
+  # DEV-вариант живёт в Plugins/<id>_dev/ — признак по имени корневой папки
+  DEV_BUILD = File.basename(PLUG_ROOT).end_with?('_dev').freeze
 
   COMMON_MENU = 'DN1Sup'.freeze          # общее меню всех расширений DN1Sup
   MENU_NAME   = 'Create Project'.freeze  # подменю расширения внутри COMMON_MENU

@@ -15,6 +15,12 @@
       <span
         class="ml-1 px-1.5 py-0.5 rounded bg-slate-200/70 dark:bg-slate-800 text-[10px] font-mono text-slate-500 dark:text-slate-400"
       >v{{ version }}</span>
+      <span
+        v-if="devBuild"
+        class="ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide whitespace-nowrap
+               bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300"
+        title="Работает dev-вариант (рабочая копия sketchup-dev-mcp), не релиз"
+      >DEV</span>
     </div>
 
     <div class="flex items-center gap-1">
@@ -49,7 +55,10 @@ import { FolderPlus, RefreshCw, HelpCircle, Sun, Moon } from 'lucide-vue-next'
 import { useTheme } from '../composables/useTheme'
 import { updateFromDev } from '../composables/useSketchupBridge'
 
-defineProps({ version: { type: String, default: '—' } })
+defineProps({
+  version: { type: String, default: '—' },
+  devBuild: { type: Boolean, default: false }
+})
 defineEmits(['open-help'])
 
 const { isDark, toggleTheme } = useTheme()

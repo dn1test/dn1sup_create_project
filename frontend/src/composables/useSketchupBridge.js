@@ -26,6 +26,7 @@ const isMock = !getSketchup()
 const state = reactive({
   ready: false,
   version: '…',
+  devBuild: false, // загружен dev-вариант (Plugins/<id>_dev) — бейдж DEV в шапке
   settingsPath: '',
   settings: null,   // настройки из Ruby (settings.yaml)
   projects: [],     // реестр проектов
@@ -97,6 +98,7 @@ if (typeof window !== 'undefined') {
     if (!payload) return
     state.ready = true
     state.version = payload.version || '—'
+    state.devBuild = !!payload.dev_build
     state.settingsPath = payload.settings_path || ''
     state.settings = payload.settings || null
     state.projects = payload.projects || []
