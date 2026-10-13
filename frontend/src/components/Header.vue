@@ -19,6 +19,13 @@
 
     <div class="flex items-center gap-1">
       <button
+        class="p-1.5 rounded-full text-slate-400 hover:text-brand-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        title="Проверить обновление: сначала локальная папка разработки, потом GitHub"
+        @click="checkUpdate"
+      >
+        <RotateCw class="w-4 h-4" />
+      </button>
+      <button
         class="p-1.5 rounded-lg text-slate-400 hover:text-brand-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         title="Обновить из рабочей копии"
         @click="updateFromDev"
@@ -45,9 +52,9 @@
 </template>
 
 <script setup>
-import { FolderPlus, RefreshCw, HelpCircle, Sun, Moon } from 'lucide-vue-next'
+import { FolderPlus, RefreshCw, RotateCw, HelpCircle, Sun, Moon } from 'lucide-vue-next'
 import { useTheme } from '../composables/useTheme'
-import { updateFromDev } from '../composables/useSketchupBridge'
+import { updateFromDev, checkUpdate } from '../composables/useSketchupBridge'
 
 defineProps({
   version: { type: String, default: '—' }
