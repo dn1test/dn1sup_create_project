@@ -11,7 +11,7 @@
 |---|---|
 | Имя `dn1sup_*` в аккаунте `dn1test` | ✅ `dn1test/dn1sup_create_project` |
 | Не archived | ✅ |
-| `registry.json` в корне `main` | ✅ (id, name, description, version 0.5.0) |
+| `registry.json` в корне `main` | ✅ (id, name, description, version 0.5.1) |
 | Стабильные релизы с `.rbz` | ✅ `dist/…rbz` через CI |
 | Теги `vMAJOR.MINOR.PATCH` | ✅ (workflow на `v*`) |
 | Регистратор `<id>.rb` + `ext.id` | ✅ `dn1sup_create_project.rb`, `ext.id = 'dn1sup_create_project'` |
