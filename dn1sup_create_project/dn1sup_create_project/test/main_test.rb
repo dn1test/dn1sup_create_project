@@ -9,7 +9,14 @@ require_relative 'test_helper'
 
 module Dn1supCreateProject::Test
   test 'версия расширения задана' do
-    assert_equal '0.3.0', Dn1supCreateProject::VERSION
+    assert(Dn1supCreateProject::VERSION =~ /\A\d+\.\d+\.\d+\z/,
+           "VERSION=#{Dn1supCreateProject::VERSION.inspect}")
+    registrar = File.join(File.dirname(Dn1supCreateProject::PLUG_ROOT), 'dn1sup_create_project.rb')
+    if File.file?(registrar)
+      m = File.read(registrar, encoding: 'UTF-8').match(/ext\.version\s*=\s*['"]([^'"]+)['"]/)
+      assert(m, 'в регистраторе нет ext.version')
+      assert_equal(Dn1supCreateProject::VERSION, m[1], 'версия регистратора ≠ VERSION')
+    end
   end
 
   test 'модуль отвечает на команды' do

@@ -6,9 +6,10 @@
 # =============================================================================
 
 require_relative 'test_helper'
+require_relative 'main_test' # main_test грузится первым
 
 Dir.glob(File.join(__dir__, '*_test.rb')).sort.each do |file|
-  next if File.basename(file) == 'main_test.rb' # main_test грузится первым
+  next if File.basename(file) == 'main_test.rb' # уже загружен первым
 
   require file
 end
