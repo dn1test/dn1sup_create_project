@@ -3,9 +3,7 @@
     class="px-3.5 py-2.5 flex items-center justify-between border-b border-slate-200/70 dark:border-slate-800/70 shrink-0"
   >
     <div class="flex items-center gap-2 min-w-0">
-      <div class="w-7 h-7 rounded-lg bg-brand-500 flex items-center justify-center shrink-0">
-        <FolderPlus class="w-4 h-4 text-white" />
-      </div>
+      <img src="../assets/logo.svg" width="28" height="28" class="shrink-0" alt="DN1Sup Create Project">
       <div class="min-w-0">
         <h1 class="text-sm font-semibold leading-tight truncate">Создание проекта</h1>
         <p class="text-[10px] text-slate-400 dark:text-slate-500 leading-tight">
@@ -45,7 +43,7 @@
 </template>
 
 <script setup>
-import { FolderPlus, RotateCw, HelpCircle, Sun, Moon } from 'lucide-vue-next'
+import { RotateCw, HelpCircle, Sun, Moon } from 'lucide-vue-next'
 import { useTheme } from '../composables/useTheme'
 import { checkUpdate } from '../composables/useSketchupBridge'
 
