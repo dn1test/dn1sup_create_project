@@ -61,10 +61,7 @@ module Dn1supCreateProject
   REPO     = 'dn1test/dn1sup_create_project'.freeze
   ASSET    = "#{ID}.rbz".freeze
   PAGE_URL = "https://github.com/#{REPO}/releases".freeze
-  # Папка разработки задана в самом расширении (корень репозитория):
-  # проверка обновления сначала смотрит её, потом GitHub.
-  DEV_DIR  = File.expand_path('../..', PLUG_ROOT).freeze
-  MANIFEST = { id: ID, repo: REPO, version: VERSION, asset: ASSET, dev_dir: DEV_DIR }.freeze
+  MANIFEST = { id: ID, repo: REPO, version: VERSION, asset: ASSET }.freeze
 
   class << self
     # -- отслеживаемые ресурсы (снимаются в unload!) ---------------------------
@@ -124,7 +121,7 @@ module Dn1supCreateProject
       menu.add_item('Проверить обновления сейчас') do
         Dn1supCreateProject.safe do
           if defined?(Dn1sup::Updater)
-            Dn1sup::Updater.check_local_first!(Dn1supCreateProject::MANIFEST.merge(force: true, async: true))
+            Dn1sup::Updater.check!(Dn1supCreateProject::MANIFEST.merge(force: true, async: true))
           else
             UI.openURL(Dn1supCreateProject::PAGE_URL)
           end
@@ -147,7 +144,7 @@ module Dn1supCreateProject
 
       $dn1sup_cp_update_check_scheduled = true
       UI.start_timer(15, false) do
-        Dn1sup::Updater.check_local_first!(Dn1supCreateProject::MANIFEST.merge(async: true))
+        Dn1sup::Updater.check!(Dn1supCreateProject::MANIFEST.merge(async: true))
       end
     rescue StandardError
       nil

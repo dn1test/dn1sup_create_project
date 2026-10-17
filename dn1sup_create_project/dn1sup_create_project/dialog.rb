@@ -155,11 +155,10 @@ module Dn1supCreateProject
       when 'open_settings_file'
         safe { WinShell.reveal(Settings.path) }
       when 'check_update'
-        # Кнопка «круг со стрелками» в шапке: сначала локальная папка
-        # (DEV_DIR из MANIFEST), потом GitHub — ставится свежайшее.
+        # Кнопка «круг со стрелками» в шапке: проверка релизов на GitHub.
         safe do
           if defined?(Dn1sup::Updater)
-            Dn1sup::Updater.check_local_first!(MANIFEST.merge(force: true, async: true))
+            Dn1sup::Updater.check!(MANIFEST.merge(force: true, async: true))
           else
             UI.openURL(PAGE_URL)
           end
